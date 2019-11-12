@@ -1,0 +1,150 @@
+﻿---
+title: "108年台北醫學大學生物統計學分班第一次作業"
+author: Bo-Jiang Lin
+date: 2019-08-05
+output:   
+    beamer_presentation: 
+    keep_tex: yes
+    pandoc_args: "--latex-engine=xelatex"
+    template: beamer_default.tex
+---
+
+```{r setup, include=FALSE, echo = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+#install.packages('xtable')
+#install.packages(UsingR)
+#library(xtable)
+library(UsingR)
+PP <- read.csv("D:/PPHN.csv", header = TRUE, sep = ",")
+CVD <- read.csv("D:/CVD_ALL.csv", header = TRUE, sep = ",")
+```
+##### a. 5PPHN資料檔中包含嬰兒出生懷胎的週期及體重等資料
+
+1. 請計算懷胎週期及體重的平均數，中位數，變異數及IQR。
+
+```{r weight}
+plainstat <- function(x) {
+    return(c(mean(x, na.rm = TRUE),
+           median(x, na.rm = TRUE),
+           var(x, na.rm = TRUE),
+           IQR(x, na.rm = TRUE))
+           )
+}
+weight <- plainstat(PP$weight)
+period <- plainstat(PP$weeks)
+firts <- rbind(weight, period)
+colnames(firts) <- c("Mean", "Median", "Variance", "IQR")
+rownames(firts) <- c("Weight","Period")
+firts
+#print(xtable(firts),type ="html")
+```
+
+2. 接續第(1)小題，請分別以男女嬰兒的結果呈現。
+
+```{r baby, echo=FALSE}
+maleWeight <- plainstat(PP$weight[PP$sex == 1])
+femaleWeight <- plainstat(PP$weight[PP$sex == 0])
+malePeriod <- plainstat(PP$weeks[PP$sex == 1])
+femalePeriod <- plainstat(PP$weeks[PP$sex == 0])
+mal <- array(rbind(maleWeight, malePeriod), dim = c(2, 4))
+dimnames(mal)[[1]] <- c("Weight", "Period")
+dimnames(mal)[[2]] <- c("Mean", "Median", "Variance", "IQR")
+"男嬰"
+mal
+#print(xtable(mal, caption = "男嬰"), type = "html")
+fel <- array(rbind(femaleWeight, femalePeriod), dim = c(2, 4))
+dimnames(fel)[[1]] <- c("Weight", "Period")
+dimnames(fel)[[2]] <- c("Mean", "Median", "Variance", "IQR")
+
+
+"女嬰"
+fel
+#print(xtable(fel, caption = "女嬰"), type = "html")
+```
+3. 接續第(1)小題，請針對懷胎週期小於平均數以下的小孩，計算他們體重的平均數，中位數，變異數及IQR。
+
+```{r}
+weeklower36 <- plainstat(PP$weight[PP$weeks < 36.26])
+names(weeklower36) <-c("Mean", "Median", "Variance", "IQR")
+weeklower36
+```
+
+##### 2. 資料總結的五數（five-number summary）通常以極小、極大數、中位數、第一和第三個四分位數來表達。由五數的結構我們通常可以約略的認識資料＂分佈＂的狀態。使用CVD_All的資料，
+
+1. 計算收縮壓資料的五個總結數； 
+
+```{r}
+summary(CVD$Compression)
+```
+
+2. 計算空腹血糖資料的五個總結數；
+
+```{r}
+summary(CVD$Glucose)
+```
+
+3. 計算三酸甘油酯資料的五個總結數；
+
+```{r}
+summary(CVD$Triglycera)
+```
+4. 前面五個總結數，以男女分別呈現；
+###### 男
+```{r}
+babymal <- rbind(summary(CVD$Compression[CVD$Sex == 0])
+                 , summary(CVD$Glucose[CVD$Sex == 0])
+                 , summary(CVD$Triglycera[CVD$Sex == 0]))
+dimnames(babymal)[[1]] <- c("Compression", "Glucose", "Triglycera")
+babymal
+```
+###### 女
+
+```{r}
+babyfel <- rbind(summary(CVD$Compression[CVD$Sex == 1])
+                 , summary(CVD$Glucose[CVD$Sex == 1])
+                 , summary(CVD$Triglycera[CVD$Sex == 1]))
+dimnames(babyfel)[[1]] <- c("Compression", "Glucose", "Triglycera")
+babyfel
+```
+5. 從(4)中五個總數的比較，你有什麼結論?
+
+女性的收縮壓、空腹血糖和三酸甘油酯的平均值皆比男性高，然男性的收縮壓項目中有一個極大值的偏差，明顯高於女性；而女性在三酸甘油酯項目中有一個極小值的偏差，明顯低於男性。
+
+##### 3. 接續第2個題目中的第4個小題，請使用盒鬚圖，探討男女資料分散程度的差異性。
+女性在空腹血糖跟三酸甘油酯的組別中，其資料相較男生分散。
+
+```{r}
+boxplot(CVD$Compression ~ CVD$Sex, names = c("Male", "Female"), main = "Compression")
+```
+
+```{r}
+boxplot(CVD$Glucose ~ CVD$Sex, names = c("Male", "Female"), main = "Glucose")
+```
+
+```{r}
+boxplot(CVD$Triglycera ~ CVD$Sex, names = c("Male", "Female"), main = "Tryglyceride")
+```
+
+
+##### 4. 接續第2個題目中的資料，
+1. 請畫出收縮壓資料的直方圖，
+2. 請畫出舒張壓資料的直方圖，
+3. 請比較前面二個直方圖，並列出結論?
+
+收縮壓平均皆大於舒張壓。
+
+```{r}
+hist(CVD$Compression, main = "histogram of Systole and Diastole", col = rgb(1, 0, 0, 0.5), xlim=c(0,250),xlab="Pressure(cm-Hg)")
+hist(CVD$Depression, col = rgb(0, 0, 1, 0.5), add = TRUE)
+box()
+legend(200, 12000, legend = c("Systole", "Diastole"), text.col = c(rgb(1, 0, 0, 0.5), rgb(0, 0, 1, 0.5)), pch = c(22, 22), pt.bg = c(rgb(1, 0, 0, 0.5), rgb(0, 0, 1, 0.5)))
+```
+
+#### 5. 接續第2個題目中的資料，請針對收縮壓及舒張壓，畫出2D的散佈圖，並探討二個變數間的相關性。
+
+```{r}
+result <- lm(CVD$Compression ~ CVD$Depression,x = TRUE)
+plot(CVD$Compression ~ CVD$Depression, xlab="Diastole", ylab="Systole",main = sprintf("Systole = %f * Diastole + %f", result$coefficients[1], result$coefficients[2]))
+abline(result, col = "red")
+```
+

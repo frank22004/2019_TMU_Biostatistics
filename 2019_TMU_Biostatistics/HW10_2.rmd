@@ -1,0 +1,64 @@
+---
+title: "Untitled"
+output: html_document
+---
+CVD_All資料中包含66,489人的臨床檢驗數據、家族、行為數據、及是否罹患CVD的數據。
+
+```{r}
+library(formattable)
+HW10 <- read.csv("D:/CVD_ALL.csv", header = TRUE, sep = ",")
+HW10["diff_pressure"] <- HW10["Compression"] - HW10["Depression"]
+names(HW10)
+```
+
+1. 請將“壓差=收縮壓減舒張壓”當成依變數，針對壓差這個依變數，年齡和性別是否存有交互作用？
+
+```{r}
+model <- lm(diff_pressure ~ Age + Sex + Age*Sex, data = HW10)
+summary(model)
+```
+
+    在壓差的模型中，年齡和性別確實具交互作用關係，其係數為-0.148 (P-value << 0.05)。
+
+2. 請檢定壓差是否為CVD發生的風險因子？性別是否為干擾因子？性別和壓差是否存在交互作用？
+
+```{r}
+model_diff <- glm(CVD ~ diff_pressure, family = binomial(link = "logit"), data = HW10, na.action = na.exclude)
+summary(model_diff)
+```
+
+    壓差確實為CVD發生的風險因子，其係數為為0.0281 (P-value << 0.05)。    
+
+```{r}
+model_diff_sex <- glm(CVD ~ diff_pressure + Sex, family = binomial(link = "logit"), data = HW10, na.action = na.exclude)
+summary(model_diff_sex)
+```
+
+    性別造成壓差的因子變化為
+    
+```{r}
+percent((model_diff$coeff[2] - model_diff_sex$coeff[2]) / model_diff$coeff[2])
+```
+    
+    <10%，非為confounding。
+ 
+```{r}
+model_interact <- glm(CVD ~ diff_pressure + Sex + diff_pressure*Sex, family = binomial(link = "logit"), data = HW10, na.action = na.exclude)
+summary(model_interact)
+```
+     在CVD發生模型中，壓差與性別並無關係，其係數-0.001702 (P-value = 0.334 > 0.05)。
+
+3. 接續上題，針對性別做分層分析，並和上題的結論比較？
+
+
+```{r, echo=FALSE}
+model_female <- glm(CVD ~ diff_pressure, family = binomial(link = "logit"), data = HW10[HW10$Sex == 0,], na.action = na.exclude)
+summary(model_female)
+```
+
+```{r}
+model_male <- glm(CVD ~ diff_pressure, family = binomial(link = "logit"), data = HW10[HW10$Sex == 1,], na.action = na.exclude)
+summary(model_male)
+```
+
+    性別確實不影響壓差。

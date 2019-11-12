@@ -1,0 +1,51 @@
+---
+title: "108年台北醫學大學生物統計學分班第七次作業"
+author: Bo-Jiang Lin
+date: 2019-9-16
+output: html_document
+---
+
+試利用心血管疾病資料（CVD ALL）分析沒有心血管疾病成人之腰圍與收縮壓的關係。（顯著水準設定為0.05） 
+
+```{r, echo=FALSE}
+library(formattable)
+HW7 <- read.csv("D:/CVD_ALL.csv", header = TRUE, sep = ",")
+```
+1. 請問腰圍與收縮壓的皮爾生相關係數為何？兩者是否存在顯著的線性關係？
+
+```{r}
+cor.test(HW7$Compression, HW7$Waistline, use = "complete.obs", method = "pearson")
+# contain use = "complete.obs" when missing value exist
+```
+
+2. 請問腰圍與收縮壓的斯皮爾曼等級相關為何？兩者是否存在顯著的等級相關？
+
+```{r}
+cor.test(HW7$Compression, HW7$Waistline, use = "complete.obs", method = "spearman")
+```
+3. 試利用簡單線性迴歸模型建立腰圍預測收縮壓之模型
+
+```{r}
+Waistline = HW7$Waistline
+regresion <- lm(HW7$Compression ~ Waistline, na.action = na.omit)
+summary(regresion)
+```
+    1. 請問此模型為何？
+
+```{r}
+cat("y =", as.numeric(regresion$coeff[2]), "x+", as.numeric(regresion$coeff[1]))
+# using cat() to print a sentence with multiple variables
+```
+    2. 腰圍是否與收縮壓有顯著相關？此模型腰圍解釋了收縮壓變異的多少百分比？
+
+```{r}
+cat("Adjusted R-square is ", summary(regresion)$adj.r.squared,",腰圍和收縮壓為顯著性相關，然腰圍僅仍解釋", as.numeric(summary(regresion)$adj.r.squared)*100,"%的收縮壓變異")
+```
+    3. 若有一人腰圍為100公分，請預測此人平均而言收壓縮何？
+
+```{r}
+newdata = data.frame("Waistline" = 100)
+predict(regresion, newdata , interval = "prediction", na.action = na.exclude)
+```
+
+

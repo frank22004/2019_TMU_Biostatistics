@@ -1,0 +1,81 @@
+---
+title: "108年台北醫學大學生物統計學分班第八次作業"
+author: Bo-Jiang Lin
+date: 2019-09-23
+output: html_document
+---
+### 1. 今有一針對慢性疲勞症候群（CFS）治療方法的臨床試驗，隨機將病患分成兩群分別給予A藥物及安慰劑治療，持續治療六周後評估是否減輕各種身心的不適症狀，資料如下:
+
+```{r, echo=FALSE}
+A_drug <- c(12, 3)
+placebo <- c(3, 14)
+CFS <- rbind(A_drug, placebo)
+colnames(CFS) <- c("Relief", "No_Change")
+CFS
+```
+
+1. 試問在顯著水準α=0.05之下，該藥物對於治療慢性疲勞症候群是否有效？請陳述統計檢定的假設、欲使用的統計檢定方法及檢定結論
+
+        H0: A藥物並不會影響各種身心不適症狀
+    
+        Ha: A藥物確實會改善各種身心不適症狀
+
+2. 請以葉氏連續性校正計算在(1)的檢定方法，並敘述其檢定結論。
+ 
+```{r}
+chi <- chisq.test(CFS)
+chi
+```
+
+        故拒絕H0，接受Ha，A藥物確實會改善各種身心不適症狀。
+
+3. 請檢驗是否符合卡方檢定的適用條件。
+ 
+```{r}
+print("Expected Contingency Table")
+chi$expected
+```
+
+
+        1. 每個格子的期望值皆 > 1。
+        2. 超過80%格子的期望值 > 5。
+        符合上述2點，故適用卡方檢定。
+
+4. 請以費雪精確性檢定以檢定該藥物對於治療慢性疲勞症候群是否有效。
+
+```{r}
+    fisher.test(CFS)
+```
+        故拒絕H0，接受Ha，A藥物確實會改善各種身心不適症狀。
+
+### 2. 今有一研究欲調查退休狀態與老年癡呆症是否有關連，因為退休狀態與老年癡呆症可能與年紀大者或性別有關，因此考慮年齡及性別為可能干擾因子，經年齡與性別配對後，共調查127對老年癡呆患者及健康的成年人，分別詢問其退休狀態，將資料以列聯表整理後，其結果如下: 
+
+```{r, echo = FALSE}
+health_retired <- c(27, 12)
+health <- c(20, 68)
+table1 <- rbind(health_retired, health)
+colnames(table1) <- c("Retired_demantia", "Working_demantia")
+print("Table 1")
+table1
+
+retire <- c(47, 39)
+working <- c(80, 88)
+table2 <- rbind(retire, working)
+colnames(table2) <- c("Demantia", "Health")
+print("Table 2")
+table2
+```
+1. 試問下列二種陳列方式哪一種較為適當來回應此研究問題? 
+
+        表2。
+
+2. 在顯著水準α=0.05之下，請檢定退休狀態與老年癡呆症是否有關連？請陳述統計檢定的假設、欲使用的統計檢定方法及檢定結論。
+
+        H0: 退休狀態與老年癡呆症沒有關聯
+        Ha: 退休狀態加速老年癡呆症的發生
+
+```{r}
+chisq.test(table2)
+```
+       
+        接受H0，退休狀態與老年癡呆症沒有關聯。

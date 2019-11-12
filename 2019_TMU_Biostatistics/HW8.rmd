@@ -1,0 +1,77 @@
+---
+title: "108年台北醫學大學生物統計學分班第八章作業"
+author: Bo-Jiang Lin
+date: 2019-09-28
+output: html_document
+---
+	
+```{r, echo = FALSE}
+library(epitools)
+library(xtable)
+lung <- read.csv("D:/lung_cancer_study.csv", header = TRUE, sep = ",")
+```
+
+#### 1. 下表為一探討心血管疾病與飲酒關係之研究，請問飲酒得心血管疾病與不飲酒得心血管疾病的相對風險為何？當顯著水準設定為0.05時，試利用檢定方法探討飲酒習慣是否與心血疾病的風險有關，其p值為何？兩者是否有顯著的相關？
+
+```{r}
+drink <- matrix(c(16, 12, 784, 188), nrow = 2, ncol = 2, dimnames = list(c("non-Alcohol", "Alcohol"),c("CVD","non-CVD")))
+#drink
+```
+
+```{r}
+riskratio(drink)
+```
+
+
+    飲酒相較於未飲酒者，其心血管疾病發生率0.959倍(p-value = 0.002 < 0.05)。
+
+#### 2. 承上題，請問飲酒習慣得到心血管疾病相對於沒有飲酒習慣的勝算比為何？勝算比的95%信賴區間為何？當顯著水準為0.05時，心血管疾病是否與飲酒有顯著的相關？
+
+```{r, echo=FALSE}
+oddsratio(drink)
+```
+
+    飲酒相較未飲酒，其發生心血管疾病的勝算是0.31倍(P-value = 0.002 < 0.05)。
+
+#### 3. 試利用肺癌資料(附件 lung_cancer_study.csv)分析回答以下問題
+
+```{r}
+#names(lung)
+```
+
+######    1. 利用簡單邏輯斯迴歸分析復發情形與性別的關係，請問男性相對於女性復發的勝算比為何？95%信賴區間為何？若顯著水準為0.05，復發與性別是否有顯著的關係？
+
+```{r}
+logit <- glm(lung$FIRST_PROGRESSION_OR_RELAPSE ~ lung$gender, na.action = na.exclude, family = binomial(link = "logit"))
+table(lung$FIRST_PROGRESSION_OR_RELAPSE,lung$gender,dnn = c("FIRST_PROGRESSION_OR_RELAPSE","gender"))
+summary(logit)
+```
+
+    男性相對於女性的復發勝算比為：
+```{r}
+exp(logit$coef[2])
+```
+
+    男性相對於女性的復發勝算比之95% CI：
+
+```{r}
+confint(logit)
+```
+
+    復發與性別未有有顯著的關係(p-value = 0.06 > 0.05)。
+
+######    2. 利用簡單邏輯斯迴歸分析復發情形與年齡的關係，若顯著水準為0.05，復發與年齡是否有顯著的關係？
+
+```{r}
+hist(lung$AGE[lung$FIRST_PROGRESSION_OR_RELAPSE == "Yes"], col = rgb(1, 0, 0, 0.5), xlab = "Age")
+hist(lung$AGE[lung$FIRST_PROGRESSION_OR_RELAPSE == "No"], col = rgb(0, 1, 0, 0.3), xlab = "Age", add = TRUE)
+box()
+legend(30, 90, legend = c("Recurence", "Non-recurence"), text.col = c(rgb(1, 0, 0, 0.5), rgb(0, 1, 0, 0.3)), pch = c(22, 22), pt.bg = c(rgb(1, 0, 0, 0.5), rgb(0, 1, 0, 0.3)))
+```
+
+```{r}
+logit_age <- glm(lung$FIRST_PROGRESSION_OR_RELAPSE ~ lung$AGE, family = binomial(link = "logit"), na.action = na.exclude)
+summary(logit_age)
+```
+
+    復發跟年齡未有顯著關係(P-value = 0.965 > 0.05)。

@@ -1,0 +1,35 @@
+---
+title: "108年台北醫學大學生物統計學分班第十次作業"
+output: html_document
+author: Bo-Jiang Lin
+date: 2019-10-20
+---
+
+	
+##### CVD_All資料中包含66,489人的臨床檢驗數據、家族、行為數據、及是否罹患CVD的數據。
+
+```{r}
+HW10 <- read.csv("D:/CVD_ALL.csv", header = TRUE, sep = ",")
+#colnames(HW10)
+```
+
+1. 請將“壓差=收縮壓減舒張壓”當成依變數，年齡當成自變數，做線性迴歸分析，並檢定年齡是否為顯著影響壓差的因子?
+
+```{r}
+HW10["diff_pressure"] <- HW10["Compression"] - HW10["Depression"]
+model <- lm(HW10$diff_pressure ~ HW10$Age)
+summary(model)
+```
+
+        年齡為影響壓差的因子。
+
+2. 接續第1題，將性別當成做線性迴歸分析的干擾因子，分析年齡是否為顯著影響壓差的因子？性別是否真的是干擾因子？
+
+```{r, echo=FALSE}
+model2 <- lm(HW10$diff_pressure ~ HW10$Age + HW10$Sex)
+summary(model2)
+```
+
+        加上性別後，年齡項目的係數為0.399，相較於原本的0.41，差異不大，且P-value皆為<0.05，年齡仍為顯著影響壓差的因子，而性別並未干擾此關係。
+
+

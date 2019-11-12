@@ -1,0 +1,77 @@
+---
+title: "1st Homework of 2019 TMU Biostatistics"
+author: Bo-Jiang Lin
+date: 2019-8-15
+output: html_document
+---
+
+```{r, include=FALSE, echo = FALSE}
+library(formattable)
+```
+
+##### 1. The demography table contains the smoke-related cancer population of Z city. The research is to delineate the relation between smoke and lung cancer.
+
+1. What is the probability of a person with smoking if we pick up randomly?
+```{r, echo=FALSE}
+percent(2000 / 10000)
+```
+2. What is the probability of a healthy person with smoking if we pick up randomly?
+
+```{r, echo=FALSE}
+percent(1980/2000)
+```
+3. What is the probability of a patient if we randomly pick him up from the smoking group?
+
+```{r, echo=FALSE}
+percent(20/10000)
+```
+##### 2. A mouse has a 20% chance of lung cancer if second-hand smoke exposed to it last month. The research is designed on the 30 mice under the exposure of second-hand smoke.
+1. What is the probability of 3 mice with lung cancer after one month?
+
+```{r, echo=FALSE}
+percent(choose(30,3)*(0.2 ^ 3) * (0.8 ^ 27))
+```
+2. What is the mean and variance of the number of mice with lung cancer after one month?
+
+```{r}
+mean <- (30 * 0.2)
+variance <- (30 * 0.2 * 0.8)
+lungcancer <- c(mean, variance)
+names(lungcancer) <- c("mean", "variance")
+formattable(lungcancer)
+```
+3. What is the probability of more than 8 mice with lung cancer after one month? using C.I.T.
+
+```{r}
+lungcancer8 <- c(0)
+for (i in c(1:8)) {
+    lungcancer8 <- lungcancer8 + choose(30, i) * (0.2 ^ i) * (0.8 ^ (30 - i))
+}
+percent(1 - lungcancer8)
+```
+##### 3. The chance of the car accident on the cross-road is poisson distribution. The lambda is 1.5 accidents per year.¦¸¡C
+1. What is the probability of two accidents in one year?
+
+```{r}
+percent(ppois(2,lambda = 1.5))
+```
+
+2. Give from the same odd (lambda = 1.5) of the dependent car accident, what is the mean and variance in the successive three years?
+
+```{r, echo=FALSE}
+1.5+1.5+1.5
+```
+##### 4. The height of the population is 170 cm on average with a 10 cm standard deviation. The research sample 40 persons.
+1. What is the distribution of the mean of the sampling? Describe the mean and standard deviation of the distribution.
+
+```{r}
+distribution <- c(170, 10 / sqrt(40))
+names(distribution) <- c("Mean", "S.D.")
+distribution
+```
+
+2. What is the probability of above 175 cm height on average?
+
+```{r}
+percent(1-pnorm(175, mean = 170, sd = 1.581139))
+```

@@ -1,0 +1,127 @@
+---
+title: "108年台北醫學大學生物統計學分班第四次作業"
+output: html_document
+author: Bo-Jiang Lin
+date: 2019-10-20
+---
+##### 請利用此章節之資料（新生兒持續性肺動脈高壓PPHN），回答下列問題：顯著水準為0.05。
+
+```{r, echo = FALSE}
+library("caret")
+PP <- read.csv("D:/PPHN.csv", header = TRUE, sep = ",")
+colnames(PP)
+```
+
+1. 在懷孕週數、出生體重、1分鐘apgar、5分鐘apgar、酸鹼值（PH值）、AaDO2，上述6個變項中，哪個變項在死亡和存活兩組別間，其平均數上具有統計上之顯著差異。使用的統計方法稱為什麼？(選一個變數分析)
+```{r}
+week_death <- PP$weight[which(PP$death == 1), drop = F]
+week_survival <- PP$weight[which(PP$death == 0 & PP$weight <= 4000 & PP$weight >= 2000)]
+
+par(mfcol = c(1, 2))
+qqnorm(week_death, ylab = "death")
+qqline(week_death, col= "red")
+qqnorm(week_survival, ylab = "survival")
+qqline(week_survival, col= "blue")
+```
+
+```{r}
+shapiro.test(week_death)
+```
+
+```{r}
+shapiro.test(week_survival)
+```
+
+
+```{r}
+var.test(week_survival, week_death)
+```
+
+```{r}
+t.test(week_survival, week_death, var.equal = FALSE)
+```
+
+
+2. 在懷孕週數、出生體重、1分鐘apgar、5分鐘apgar、酸鹼值（PH值）、AaDO2，上述6個變項中，在死亡和存活兩組別間，哪些變項其存活組之中位數是顯著大於死亡組之中位數。使用的統計方法稱為什麼？(選一個變數分析)
+```{r}
+weight_survival <- PP$weight[which(PP$death == 0)]
+weight_death <- PP$weight[which(PP$death == 1)]
+par(mfcol = c(1,2))
+qqnorm(weight_death, ylab = "weight_death")
+qqline(weight_death, col="red")
+qqnorm(weight_survival, ylab = "weight_survival")
+qqline(weight_survival, col="green")
+```
+
+```{r, echo = FALSE}
+shapiro.test(weight_death)
+```
+
+```{r, echo = FALSE}
+shapiro.test(weight_survival)
+```
+
+
+    因weight_survival為非normal distribution，故採用用中位數評估方法 - Wilcoxon Rank SUm test
+
+```{r}
+wilcox.test(weight_survival,weight_death)
+```
+
+    所以死亡組和存活組的出生體重確實有差異(P-value = 0.03 < 0.05)。
+
+3. 在胎便吸入與否、出生方式、早期破水與否，這三個變項中，哪些變項在死亡和存活兩組間的比例分布是具有顯著差異。使用的統計方法稱為什麼？(選一個變數分析)
+
+```{r}
+fecal <- table(PP$fecalInhale, PP$death, dnn = c("fecal inhale","death"))
+fecal
+
+fecal_death <- c(fecal[2, 2], rowSums(fecal)[[2]])
+nonfecal_death <- c(fecal[1, 2], rowSums(fecal)[[1]])
+```
+
+```{r}
+prop.test(fecal_death,nonfecal_death)
+```
+
+    胎便吸入與否並未造成胎兒死亡(P-value = 0.19 > 0.05，拒絕Ha假設)。
+
+4. 上述1.~3.問題，分別是雙尾檢定、左尾檢定或右尾檢定？
+
+        皆為雙尾檢定(two-tailed)。
+
+5. 上述1.問題中，在檢定兩組平均數是否相等時，你會選擇使用什麼方法？為什麼？需要注意哪些假設及條件。
+
+        先以Shapiro-test確認兩組別的數值是否常態分佈，確認皆為常態分佈，則進行var.test以F-est方式確認兩組的變異數是否相同，則接下來將選擇Student T-test進行分析。
+
+6. 比較死亡組之1分鐘apgar、5分鐘apgar間是否有差異。(第6,7題選一題分析)
+
+```{r}
+apgar1mm <- PP$X1mm_apgar[which(PP$death == 1)]
+apgar5mm <- PP$X5mm_apgar[which(PP$death == 1)]
+
+par(mfcol = c(1, 2))
+qqnorm(apgar1mm, ylab = "1分鐘apgar")
+qqline(apgar1mm, col="red")
+qqnorm(apgar5mm, ylab = "5分鐘apgar")
+qqline(apgar5mm, col="blue")
+```
+
+```{r}
+shapiro.test(apgar1mm)
+```
+
+```{r}
+shapiro.test(apgar5mm)
+```
+
+      非常態分佈，故選用Wicoxon Rank Sum Test進行中位數分析。
+
+```{r}
+wilcox.test(apgar1mm,apgar5mm)
+```
+
+    1分鐘apgar和5分鐘apgar造成的死亡並無統計差異(P-value = 0.61 > 0.05，拒絕Ha假設。)
+      
+
+

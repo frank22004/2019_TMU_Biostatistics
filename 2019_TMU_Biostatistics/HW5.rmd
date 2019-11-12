@@ -1,0 +1,33 @@
+---
+title: "5th Homework of 2019 TMU Biostatistics"
+author: Bo-Jiang Lin
+date: 2019-8-30
+output: html_document
+---
+Taiwan FDA investigated the difference in weight gain of one week infants who received breast milk and A, B, or C formula. They randomly selected 26 infants and recorded the weights (unit: kg) of the infants. The data lists on the following table.
+```{r, include=FALSE, echo = FALSE}
+library(asbio)
+HW5 <- read.csv("D:/HW5.csv",header = TRUE, sep = ",")
+ftable(HW5)
+```
+##### 1. Describe the Null and alternative hypothesis while studying the weight-gain effect of breast milk and A, B, or C formula.
+
+H0: The mean of weight-gain is the same whatever the infants receive breast milk and A, B, or C formula.
+
+Ha: The mean of weight-gain is different between any two groups among the breast milk and A, B, or C formula groups. 
+
+##### 2. List the weight-gain of the breast milk and A, B, or C formula groups by ANOVA table with £\ = 0.05 
+Refuse H0 and accept Ha. The formula does affect the weight-gain of infants comparing to breast milk.
+```{r}
+anova(lm(HW5$weight ~ HW5$Milk))
+```
+##### 3. Using Kruskal-Wallis test with £\ = 0.05 to investigate the weight-gain between formula and breast milk groups
+Refuse H0 and accept Ha. The formula does affect the weight-gain of infants comparing to breast milk.
+```{r}
+kruskal.test(HW5$weight ~ HW5$Milk)
+```
+##### 4. If the above results are significant, using Bonferroni adjustment with £\ = 0.05 to test the effect among the A, B, or C formula and breast milk groups.
+The weight of infants with formula gains more than others with breast milk. In formula group, The weight of infants with formula-A gain more than others with formula-B.
+```{r}
+pairwise.t.test(HW5$weight, HW5$Milk,p.adjust.method = "bonferroni")
+```
