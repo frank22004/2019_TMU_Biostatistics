@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+
+<meta charset="utf-8">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="generator" content="pandoc" />
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style type="text/css">
+@font-face {
+font-family: octicons-link;
+src: url(data:font/woff;charset=utf-8;base64,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) format('woff');
+}
+body {
+-webkit-text-size-adjust: 100%;
+text-size-adjust: 100%;
+color: #333;
+font-family: "Helvetica Neue", Helvetica, "Segoe UI", Arial, freesans, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+font-size: 16px;
+line-height: 1.6;
+word-wrap: break-word;
+}
+a {
+background-color: transparent;
+}
+a:active,
+a:hover {
+outline: 0;
+}
+strong {
+font-weight: bold;
+}
+h1 {
+font-size: 2em;
+margin: 0.67em 0;
+}
+img {
+border: 0;
+}
+hr {
+box-sizing: content-box;
+height: 0;
+}
+pre {
+overflow: auto;
+}
+code,
+kbd,
+pre {
+font-family: monospace, monospace;
+font-size: 1em;
+}
+input {
+color: inherit;
+font: inherit;
+margin: 0;
+}
+html input[disabled] {
+cursor: default;
+}
+input {
+line-height: normal;
+}
+input[type="checkbox"] {
+box-sizing: border-box;
+padding: 0;
+}
+table {
+border-collapse: collapse;
+border-spacing: 0;
+}
+td,
+th {
+padding: 0;
+}
+* {
+box-sizing: border-box;
+}
+input {
+font: 13px / 1.4 Helvetica, arial, nimbussansl, liberationsans, freesans, clean, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+}
+a {
+color: #4078c0;
+text-decoration: none;
+}
+a:hover,
+a:active {
+text-decoration: underline;
+}
+hr {
+height: 0;
+margin: 15px 0;
+overflow: hidden;
+background: transparent;
+border: 0;
+border-bottom: 1px solid #ddd;
+}
+hr:before {
+display: table;
+content: "";
+}
+hr:after {
+display: table;
+clear: both;
+content: "";
+}
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+margin-top: 15px;
+margin-bottom: 15px;
+line-height: 1.1;
+}
+h1 {
+font-size: 30px;
+}
+h2 {
+font-size: 21px;
+}
+h3 {
+font-size: 16px;
+}
+h4 {
+font-size: 14px;
+}
+h5 {
+font-size: 12px;
+}
+h6 {
+font-size: 11px;
+}
+blockquote {
+margin: 0;
+}
+ul,
+ol {
+padding: 0;
+margin-top: 0;
+margin-bottom: 0;
+}
+ol ol,
+ul ol {
+list-style-type: lower-roman;
+}
+ul ul ol,
+ul ol ol,
+ol ul ol,
+ol ol ol {
+list-style-type: lower-alpha;
+}
+dd {
+margin-left: 0;
+}
+code {
+font-family: Consolas, "Liberation Mono", Menlo, Courier, monospace;
+font-size: 12px;
+}
+pre {
+margin-top: 0;
+margin-bottom: 0;
+font: 12px Consolas, "Liberation Mono", Menlo, Courier, monospace;
+}
+.select::-ms-expand {
+opacity: 0;
+}
+.octicon {
+font: normal normal normal 16px/1 octicons-link;
+display: inline-block;
+text-decoration: none;
+text-rendering: auto;
+-webkit-font-smoothing: antialiased;
+-moz-osx-font-smoothing: grayscale;
+-webkit-user-select: none;
+-moz-user-select: none;
+-ms-user-select: none;
+user-select: none;
+}
+.octicon-link:before {
+content: '\f05c';
+}
+.markdown-body:before {
+display: table;
+content: "";
+}
+.markdown-body:after {
+display: table;
+clear: both;
+content: "";
+}
+.markdown-body>*:first-child {
+margin-top: 0 !important;
+}
+.markdown-body>*:last-child {
+margin-bottom: 0 !important;
+}
+a:not([href]) {
+color: inherit;
+text-decoration: none;
+}
+.anchor {
+display: inline-block;
+padding-right: 2px;
+margin-left: -18px;
+}
+.anchor:focus {
+outline: none;
+}
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+margin-top: 1em;
+margin-bottom: 16px;
+font-weight: bold;
+line-height: 1.4;
+}
+h1 .octicon-link,
+h2 .octicon-link,
+h3 .octicon-link,
+h4 .octicon-link,
+h5 .octicon-link,
+h6 .octicon-link {
+color: #000;
+vertical-align: middle;
+visibility: hidden;
+}
+h1:hover .anchor,
+h2:hover .anchor,
+h3:hover .anchor,
+h4:hover .anchor,
+h5:hover .anchor,
+h6:hover .anchor {
+text-decoration: none;
+}
+h1:hover .anchor .octicon-link,
+h2:hover .anchor .octicon-link,
+h3:hover .anchor .octicon-link,
+h4:hover .anchor .octicon-link,
+h5:hover .anchor .octicon-link,
+h6:hover .anchor .octicon-link {
+visibility: visible;
+}
+h1 {
+padding-bottom: 0.3em;
+font-size: 2.25em;
+line-height: 1.2;
+border-bottom: 1px solid #eee;
+}
+h1 .anchor {
+line-height: 1;
+}
+h2 {
+padding-bottom: 0.3em;
+font-size: 1.75em;
+line-height: 1.225;
+border-bottom: 1px solid #eee;
+}
+h2 .anchor {
+line-height: 1;
+}
+h3 {
+font-size: 1.5em;
+line-height: 1.43;
+}
+h3 .anchor {
+line-height: 1.2;
+}
+h4 {
+font-size: 1.25em;
+}
+h4 .anchor {
+line-height: 1.2;
+}
+h5 {
+font-size: 1em;
+}
+h5 .anchor {
+line-height: 1.1;
+}
+h6 {
+font-size: 1em;
+color: #777;
+}
+h6 .anchor {
+line-height: 1.1;
+}
+p,
+blockquote,
+ul,
+ol,
+dl,
+table,
+pre {
+margin-top: 0;
+margin-bottom: 16px;
+}
+hr {
+height: 4px;
+padding: 0;
+margin: 16px 0;
+background-color: #e7e7e7;
+border: 0 none;
+}
+ul,
+ol {
+padding-left: 2em;
+}
+ul ul,
+ul ol,
+ol ol,
+ol ul {
+margin-top: 0;
+margin-bottom: 0;
+}
+li>p {
+margin-top: 16px;
+}
+dl {
+padding: 0;
+}
+dl dt {
+padding: 0;
+margin-top: 16px;
+font-size: 1em;
+font-style: italic;
+font-weight: bold;
+}
+dl dd {
+padding: 0 16px;
+margin-bottom: 16px;
+}
+blockquote {
+padding: 0 15px;
+color: #777;
+border-left: 4px solid #ddd;
+}
+blockquote>:first-child {
+margin-top: 0;
+}
+blockquote>:last-child {
+margin-bottom: 0;
+}
+table {
+display: block;
+width: 100%;
+overflow: auto;
+word-break: normal;
+word-break: keep-all;
+}
+table th {
+font-weight: bold;
+}
+table th,
+table td {
+padding: 6px 13px;
+border: 1px solid #ddd;
+}
+table tr {
+background-color: #fff;
+border-top: 1px solid #ccc;
+}
+table tr:nth-child(2n) {
+background-color: #f8f8f8;
+}
+img {
+max-width: 100%;
+box-sizing: content-box;
+background-color: #fff;
+}
+code {
+padding: 0;
+padding-top: 0.2em;
+padding-bottom: 0.2em;
+margin: 0;
+font-size: 85%;
+background-color: rgba(0,0,0,0.04);
+border-radius: 3px;
+}
+code:before,
+code:after {
+letter-spacing: -0.2em;
+content: "\00a0";
+}
+pre>code {
+padding: 0;
+margin: 0;
+font-size: 100%;
+word-break: normal;
+white-space: pre;
+background: transparent;
+border: 0;
+}
+.highlight {
+margin-bottom: 16px;
+}
+.highlight pre,
+pre {
+padding: 16px;
+overflow: auto;
+font-size: 85%;
+line-height: 1.45;
+background-color: #f7f7f7;
+border-radius: 3px;
+}
+.highlight pre {
+margin-bottom: 0;
+word-break: normal;
+}
+pre {
+word-wrap: normal;
+}
+pre code {
+display: inline;
+max-width: initial;
+padding: 0;
+margin: 0;
+overflow: initial;
+line-height: inherit;
+word-wrap: normal;
+background-color: transparent;
+border: 0;
+}
+pre code:before,
+pre code:after {
+content: normal;
+}
+kbd {
+display: inline-block;
+padding: 3px 5px;
+font-size: 11px;
+line-height: 10px;
+color: #555;
+vertical-align: middle;
+background-color: #fcfcfc;
+border: solid 1px #ccc;
+border-bottom-color: #bbb;
+border-radius: 3px;
+box-shadow: inset 0 -1px 0 #bbb;
+}
+.pl-c {
+color: #969896;
+}
+.pl-c1,
+.pl-s .pl-v {
+color: #0086b3;
+}
+.pl-e,
+.pl-en {
+color: #795da3;
+}
+.pl-s .pl-s1,
+.pl-smi {
+color: #333;
+}
+.pl-ent {
+color: #63a35c;
+}
+.pl-k {
+color: #a71d5d;
+}
+.pl-pds,
+.pl-s,
+.pl-s .pl-pse .pl-s1,
+.pl-sr,
+.pl-sr .pl-cce,
+.pl-sr .pl-sra,
+.pl-sr .pl-sre {
+color: #183691;
+}
+.pl-v {
+color: #ed6a43;
+}
+.pl-id {
+color: #b52a1d;
+}
+.pl-ii {
+background-color: #b52a1d;
+color: #f8f8f8;
+}
+.pl-sr .pl-cce {
+color: #63a35c;
+font-weight: bold;
+}
+.pl-ml {
+color: #693a17;
+}
+.pl-mh,
+.pl-mh .pl-en,
+.pl-ms {
+color: #1d3e81;
+font-weight: bold;
+}
+.pl-mq {
+color: #008080;
+}
+.pl-mi {
+color: #333;
+font-style: italic;
+}
+.pl-mb {
+color: #333;
+font-weight: bold;
+}
+.pl-md {
+background-color: #ffecec;
+color: #bd2c00;
+}
+.pl-mi1 {
+background-color: #eaffea;
+color: #55a532;
+}
+.pl-mdr {
+color: #795da3;
+font-weight: bold;
+}
+.pl-mo {
+color: #1d3e81;
+}
+kbd {
+display: inline-block;
+padding: 3px 5px;
+font: 11px Consolas, "Liberation Mono", Menlo, Courier, monospace;
+line-height: 10px;
+color: #555;
+vertical-align: middle;
+background-color: #fcfcfc;
+border: solid 1px #ccc;
+border-bottom-color: #bbb;
+border-radius: 3px;
+box-shadow: inset 0 -1px 0 #bbb;
+}
+.task-list-item {
+list-style-type: none;
+}
+.task-list-item+.task-list-item {
+margin-top: 3px;
+}
+.task-list-item input {
+margin: 0 0.35em 0.25em -1.6em;
+vertical-align: middle;
+}
+:checked+.radio-label {
+z-index: 1;
+position: relative;
+border-color: #4078c0;
+}
+.sourceLine {
+display: inline-block;
+}
+code .kw { color: #000000; }
+code .dt { color: #ed6a43; }
+code .dv { color: #009999; }
+code .bn { color: #009999; }
+code .fl { color: #009999; }
+code .ch { color: #009999; }
+code .st { color: #183691; }
+code .co { color: #969896; }
+code .ot { color: #0086b3; }
+code .al { color: #a61717; }
+code .fu { color: #63a35c; }
+code .er { color: #a61717; background-color: #e3d2d2; }
+code .wa { color: #000000; }
+code .cn { color: #008080; }
+code .sc { color: #008080; }
+code .vs { color: #183691; }
+code .ss { color: #183691; }
+code .im { color: #000000; }
+code .va {color: #008080; }
+code .cf { color: #000000; }
+code .op { color: #000000; }
+code .bu { color: #000000; }
+code .ex { color: #000000; }
+code .pp { color: #999999; }
+code .at { color: #008080; }
+code .do { color: #969896; }
+code .an { color: #008080; }
+code .cv { color: #008080; }
+code .in { color: #008080; }
+</style>
+<style>
+body {
+box-sizing: border-box;
+min-width: 200px;
+max-width: 980px;
+margin: 0 auto;
+padding: 45px;
+padding-top: 0px;
+}
+</style>
+
+
+</head>
+
+<body>
+
+<h1 id="the-thickness-of-collagen-membrane">The Thickness of Collagen
+Membrane</h1>
+<p>Frank (Bo-Jiang Lin) 2022-08-28</p>
+<h2 id="github-documents">GitHub Documents</h2>
+<p>This is an R Markdown format used for publishing markdown documents
+to GitHub. When you click the <strong>Knit</strong> button all R code
+chunks are run and a markdown file (.md) suitable for publishing to
+GitHub is generated.</p>
+<h2 id="including-code">Including Code</h2>
+<h3 id="id_1-configure-the-necessary-environment-and-packages">1.
+Configure the necessary environment and packages</h3>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>version[[<span class="st">&#39;version.string&#39;</span>]]</span></code></pre></div>
+<pre><code>## [1] &quot;R version 4.2.1 (2022-06-23 ucrt)&quot;</code></pre>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(readxl)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(UsingR)</span></code></pre></div>
+<pre><code>## Loading required package: MASS
+
+## Loading required package: HistData
+
+## Loading required package: Hmisc
+
+## Loading required package: lattice
+
+## Loading required package: survival
+
+## Loading required package: Formula
+
+## Loading required package: ggplot2
+
+## 
+## Attaching package: &#39;Hmisc&#39;
+
+## The following objects are masked from &#39;package:base&#39;:
+## 
+##     format.pval, units
+
+## 
+## Attaching package: &#39;UsingR&#39;
+
+## The following object is masked from &#39;package:survival&#39;:
+## 
+##     cancer</code></pre>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(lessR)</span></code></pre></div>
+<pre><code>## 
+## lessR 4.2.2                         feedback: gerbing@pdx.edu 
+## --------------------------------------------------------------
+## &gt; d &lt;- Read(&quot;&quot;)   Read text, Excel, SPSS, SAS, or R data file
+##   d is default data frame, data= in analysis routines optional
+## 
+## Learn about reading, writing, and manipulating data, graphics,
+## testing means and proportions, regression, factor analysis,
+## customization, and descriptive statistics from pivot tables.
+##   Enter:  browseVignettes(&quot;lessR&quot;)
+## 
+## View changes in this or recent versions of lessR.
+##   Enter: help(package=lessR)  Click: Package NEWS
+##   Enter: interact()  for access to interactive graphics
+##   New function: reshape_long() to move data from wide to long
+
+## 
+## Attaching package: &#39;lessR&#39;
+
+## The following objects are masked from &#39;package:Hmisc&#39;:
+## 
+##     label, Merge</code></pre>
+<h3 id="id_2-read-data">2. Read Data</h3>
+<pre><code>## # A tibble: 5 × 14
+##   Date       Person 60 mm Dish…¹ Buffe…² Total…³ Centr…⁴ Uncom…⁵ 7days…⁶ 0 day…⁷
+##   &lt;date&gt;     &lt;chr&gt;         &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;
+## 1 2022-08-28 Frank         6262.      NA      NA      NA      NA      NA      NA
+## 2 2022-08-28 Frank         6253.      NA      NA      NA      NA      NA      NA
+## 3 2022-08-28 Frank         6248.      NA      NA      NA      NA      NA      NA
+## 4 2022-08-28 Frank         6268.      NA      NA      NA      NA      NA      NA
+## 5 2022-08-28 Frank         6263.      NA      NA      NA      NA      NA      NA
+## # … with 5 more variables: `Compressed Thickness  (μm) after 7 days` &lt;dbl&gt;,
+## #   `Compressed Thickness  (μm) after 0 days` &lt;dbl&gt;,
+## #   UnCompressed_Thickness &lt;dbl&gt;, `7days Compression ratio` &lt;dbl&gt;,
+## #   `0 days Compression ratio` &lt;dbl&gt;, and abbreviated variable names
+## #   ¹​`60 mm Dish (μm)`, ²​`Buffer (pH)`, ³​Total_solution_quantity,
+## #   ⁴​`Centrifuge time (min)`, ⁵​`Uncompressed Depth (μm)`,
+## #   ⁶​`7days and Compressed Depth (μm)`, ⁷​`0 days and Compressed Depth (μm)`</code></pre>
+<h3 id="id_3-exploratory-data-analysis-for-2022-08-28-data">3.
+Exploratory Data Analysis for 2022-08-28 data</h3>
+<h4 id="descriptive-statistics-on-the-2022-08-28-data">Descriptive
+Statistics on the 2022-08-28 data</h4>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">aggregate</span>(collagen_Frank[<span class="fu">c</span>(<span class="st">&quot;Total_solution_quantity&quot;</span>,<span class="st">&quot;UnCompressed_Thickness&quot;</span>)],<span class="fu">list</span>(collagen_Frank<span class="sc">$</span>Total_solution_quantity),mean)</span></code></pre></div>
+<pre><code>##   Group.1 Total_solution_quantity UnCompressed_Thickness
+## 1     1.0                     1.0               471.7582
+## 2     1.5                     1.5               627.5724</code></pre>
+<h4 id="check-whether-the-2022-08-28-data-is-normal-distribution">Check
+whether the 2022-08-28 data is normal distribution</h4>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(collagen<span class="sc">$</span>UnCompressed_Thickness)</span></code></pre></div>
+<pre><code>##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA&#39;s 
+##   331.1   447.3   511.6   519.6   551.4   816.3      15</code></pre>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co">#Creat a table</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>normal <span class="ot">&lt;-</span> <span class="fu">shapiro.test</span>(collagen<span class="sc">$</span>UnCompressed_Thickness)</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>normal</span></code></pre></div>
+<pre><code>## 
+##  Shapiro-Wilk normality test
+## 
+## data:  collagen$UnCompressed_Thickness
+## W = 0.94094, p-value = 0.1556</code></pre>
+<h5 id="the-2022-08-28-data-shows-p-value--016--01-it-represent-that-the-data-distrubute-normally-and-ready-for-further-test">The
+2022-08-28 data shows p-value = 0.16 &gt;= 0.1. It represent that the
+data distrubute normally and ready for further test..</h5>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="fu">t.test</span>(collagen_Frank<span class="sc">$</span>UnCompressed_Thickness <span class="sc">~</span> collagen_Frank<span class="sc">$</span>Total_solution_quantity)</span></code></pre></div>
+<pre><code>## 
+##  Welch Two Sample t-test
+## 
+## data:  collagen_Frank$UnCompressed_Thickness by collagen_Frank$Total_solution_quantity
+## t = -1.937, df = 5.7962, p-value = 0.1026
+## alternative hypothesis: true difference in means between group 1 and group 1.5 is not equal to 0
+## 95 percent confidence interval:
+##  -354.33488   42.70648
+## sample estimates:
+##   mean in group 1 mean in group 1.5 
+##          471.7582          627.5724</code></pre>
+<h3 id="id_4-reproducibility">4. Reproducibility</h3>
+<h2 id="including-plots">Including Plots</h2>
+<h3 id="id_1-the-distribution-of-the-2022-08-28-data">1. the
+distribution of the 2022-08-28 data</h3>
+<p><img src="data:image/png;base64,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" /><!-- --></p>
+<h3 id="id_2-the-comparison-study-on-the-2022-08-28-data">2. the
+comparison study on the 2022-08-28 data</h3>
+<p>Note that the <code>echo = FALSE</code> parameter was added to the
+code chunk to prevent printing of the R code that generated the
+plot.</p>
+
+</body>
+</html>

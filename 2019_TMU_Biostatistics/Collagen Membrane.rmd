@@ -1,0 +1,118 @@
+---
+title: "The Thickness of Collagen Membrane"
+author: "Frank (Bo-Jiang Lin)"
+date: "2022-08-28"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## GitHub Documents
+
+This is an R Markdown format used for publishing markdown documents to GitHub. When you click the **Knit** button all R code chunks are run and a markdown file (.md) suitable for publishing to GitHub is generated.
+
+## Including Code
+
+### 1. Configure the necessary environment and packages
+
+```{r package}
+version[['version.string']]
+library(readxl)
+library(UsingR)
+library(lessR)
+library(ggplot2)
+```
+
+### 2. Read Data
+
+```{r excel, echo= FALSE}
+collagen <- read_excel("E:/OneDrive/Tokyo Metropolitan University/Collagen Membrane.xlsx", sheet = 2)
+colnames(collagen)[which(names(collagen)=="UnCompressed Thickness (μm)")] <- "UnCompressed_Thickness"
+colnames(collagen)[which(names(collagen)=="Total solution quantity (ml)")] <- "Total_solution_quantity"
+#eliminate the physical unit label from the column names
+
+collagen$Date <- as.Date(format(collagen$Date, "%Y-%m-%d"))
+#Parse the date and time into date only
+
+exp_date <- as.Date("2022-08-28")
+collagen_Frank <- subset.data.frame(collagen, Person == "Frank" & Date == exp_date)
+collagen_1ml <- subset.data.frame(collagen, Total_solution_quantity==1 & Person != "Oyamasan")
+head(collagen_Frank,5)
+```
+
+### 3. Exploratory Data Analysis for `r exp_date` data
+
+#### Descriptive Statistics on the `r exp_date` data
+
+```{r description, echo= FALSE}
+collagen_Frank_mean <- aggregate(collagen_Frank[c("Total_solution_quantity","UnCompressed_Thickness")],list(collagen_Frank$Total_solution_quantity),mean)
+collagen_Frank_sd <- aggregate(collagen_Frank[c("Total_solution_quantity","UnCompressed_Thickness")],list(collagen_Frank$Total_solution_quantity),sd)
+collagen_Frank_mean
+```
+
+#### Check whether the `r exp_date` data is normal distribution
+```{r normal test}
+summary(collagen$UnCompressed_Thickness)
+#Creat a table
+
+normal <- shapiro.test(collagen$UnCompressed_Thickness)
+normal
+```
+
+##### The `r exp_date` data shows p-value = `r round(normal$p.value,2)``r if(normal$p.value < 0.1){" < 0.1. It represent that the data distrubute abnormally and need to be fitted by distribution test."}else{" >= 0.1. It represent that the data distrubute normally and ready for further test."}`.
+
+```{r t test}
+comparison <- t.test(collagen_Frank$UnCompressed_Thickness ~ collagen_Frank$Total_solution_quantity)
+comparison
+```
+
+##### The `r exp_date` data shows p-value is `r round(comparison$p.value,2)`  `r if(comparison$p.value > 0.05){" >= 0.05 which means we accept the H0 hypothesis."}else{"< 0.5 which means we reject the H0 hypothesis and accept the H1 hypothesis."}`
+
+### 4. Reproducibility
+```{r EDA for reproducibility, echo= FALSE}
+collagen_1ml_mean <- aggregate(collagen_1ml[c("Total_solution_quantity","UnCompressed_Thickness")],list(collagen_1ml$Person),mean)
+collagen_1ml_sd <- aggregate(collagen_1ml[c("Total_solution_quantity","UnCompressed_Thickness")],list(collagen_1ml$Person),sd)
+collagen_1ml_mean
+```
+
+```{r anova for reproducibility}
+reproducibility <- t.test(collagen_1ml$UnCompressed_Thickness ~ collagen_1ml$Person)
+reproducibility
+```
+
+##### The p-value is `r round(reproducibility$p.value,2)` which means `r if(reproducibility$p.value > 0.05){"the data reach to the consensus results while p-value is higher than 0.05."}else{"the data are aberant from the previous data because of the p-value is lower than 0.05."}`
+
+## Including Plots
+
+### 1. the distribution of the `r exp_date` data
+```{r normal plot, echo = FALSE}
+simple.eda(collagen_Frank$UnCompressed_Thickness)
+```
+
+### 2. the comparison of the `r exp_date` data
+```{r comparison, echo = FALSE}
+barplotcomparison <- barplot(collagen_Frank_mean$UnCompressed_Thickness ~ collagen_Frank_mean$Group.1, ylim = c(0,800))
+arrows(x0 = barplotcomparison,
+       y1 = collagen_Frank_mean$UnCompressed_Thickness + collagen_Frank_sd$UnCompressed_Thickness,
+       y0 = collagen_Frank_mean$UnCompressed_Thickness - collagen_Frank_sd$UnCompressed_Thickness,
+       angle = 90,
+       code = 3,
+       length = 0.1
+)
+```
+
+### 3. the comparison study on the `r exp_date` data with the prvious study
+```{r reproducibility, echo = FALSE}
+barplotreproducibility <- barplot(collagen_1ml_mean$UnCompressed_Thickness ~ collagen_1ml_mean$Group.1, ylim = c(0,750))
+arrows(x0 = barplotreproducibility, 
+       y0 = collagen_1ml_mean$UnCompressed_Thickness + collagen_1ml_sd$UnCompressed_Thickness,
+       y1 = collagen_1ml_mean$UnCompressed_Thickness - collagen_1ml_sd$UnCompressed_Thickness,
+       angle = 90,
+       code = 3,
+       length = 0.1
+)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
