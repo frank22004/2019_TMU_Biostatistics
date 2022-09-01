@@ -17,12 +17,13 @@ This is an R Markdown format used for publishing markdown documents to GitHub. W
 
 ### 1. Configure the necessary environment and packages
 
-```{r package}
-version[['version.string']]
+The analysis is powered by `r version[['version.string']]`.
+```{r package, message=FALSE}
 library(readxl)
 library(UsingR)
 library(lessR)
 library(ggplot2)
+library(knitr)
 ```
 
 ### 2. Read Data
@@ -39,7 +40,7 @@ collagen$Date <- as.Date(format(collagen$Date, "%Y-%m-%d"))
 exp_date <- as.Date("2022-08-28")
 collagen_Frank <- subset.data.frame(collagen, Person == "Frank" & Date == exp_date)
 collagen_1ml <- subset.data.frame(collagen, Total_solution_quantity==1 & Person != "Oyamasan")
-head(collagen_Frank,5)
+kable(head(collagen,5))
 ```
 
 ### 3. Exploratory Data Analysis for `r exp_date` data
@@ -49,7 +50,7 @@ head(collagen_Frank,5)
 ```{r description, echo= FALSE}
 collagen_Frank_mean <- aggregate(collagen_Frank[c("Total_solution_quantity","UnCompressed_Thickness")],list(collagen_Frank$Total_solution_quantity),mean)
 collagen_Frank_sd <- aggregate(collagen_Frank[c("Total_solution_quantity","UnCompressed_Thickness")],list(collagen_Frank$Total_solution_quantity),sd)
-collagen_Frank_mean
+kable(collagen_Frank_mean)
 ```
 
 #### Check whether the `r exp_date` data is normal distribution
@@ -74,7 +75,7 @@ comparison
 ```{r EDA for reproducibility, echo= FALSE}
 collagen_1ml_mean <- aggregate(collagen_1ml[c("Total_solution_quantity","UnCompressed_Thickness")],list(collagen_1ml$Person),mean)
 collagen_1ml_sd <- aggregate(collagen_1ml[c("Total_solution_quantity","UnCompressed_Thickness")],list(collagen_1ml$Person),sd)
-collagen_1ml_mean
+kable(collagen_1ml_mean)
 ```
 
 ```{r anova for reproducibility}
