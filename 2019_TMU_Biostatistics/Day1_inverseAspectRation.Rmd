@@ -1,0 +1,238 @@
+---
+title: "Day1_inverseAspectRatio"
+author: "Frank"
+date: "2022-09-22"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Configuration
+
+The analysis is powered by `r version[['version.string']]`. It requires the following packages:
+
+```{r library, message=FALSE}
+library(readxl)
+library(UsingR)
+library(ggpubr)
+library(ggplot2)
+library(ggsignif)
+library(dplyr)
+library(ggeasy)
+library(ggplot2)
+library(rstatix)
+library(PMCMRplus)
+```
+
+## Reading the Raw Data From Excel
+
+```{r excel, echo=FALSE}
+inverseAspectRatio <- read_xlsx("F:/M2/でーたまとめ/statistic.xlsx",sheet = 1)
+inverseAspectRatio
+```
+
+ ## Table on the Data
+
+```{r, echo=FALSE}
+#aggregate(inverseAspectRatio[c("nomarized inverce aspect ratio")],list(group=inverseAspectRatio$`SC or CS`),mean)
+SynthesisMatrix <- inverseAspectRatio %>%
+  group_by(`Stretch`,`Speed`,`Time`,`GroupName`) %>%
+  summarise(
+    count = n(),
+    mean = mean(`Strain`, na.rm = TRUE),
+    sd = sd(`Strain`, na.rm = TRUE),
+    median = median(`Strain`, na.rm = TRUE),
+    IQR = IQR(`Strain`, na.rm = TRUE),
+    se = sd(`Strain`, na.rm = TRUE)/sqrt(n())
+  )
+SynthesisMatrix
+```
+
+```{r divide the group, echo=FALSE, include=FALSE}
+F1 <- subset.data.frame(inverseAspectRatio,inverseAspectRatio$`GroupName`=="5s2.5%0.005s")
+F2 <- subset.data.frame(inverseAspectRatio,inverseAspectRatio$`GroupName`=="1s2.5%0.025s")
+F3 <- subset.data.frame(inverseAspectRatio,inverseAspectRatio$`GroupName`=="8s4%0.005s")
+F4<- subset.data.frame(inverseAspectRatio,inverseAspectRatio$`GroupName`=="1.6s4%0.025s")
+F5<- subset.data.frame(inverseAspectRatio,inverseAspectRatio$`GroupName`=="10s5%0.005s")
+F6<- subset.data.frame(inverseAspectRatio,inverseAspectRatio$`GroupName`=="11s5%0.005s")
+F7<- subset.data.frame(inverseAspectRatio,inverseAspectRatio$`GroupName`=="2s5%0.025s")
+F8<- subset.data.frame(inverseAspectRatio,inverseAspectRatio$`GroupName`=="3s5%0.025s")
+```
+
+Check the normality and decide to run Student T-test or Wilcox Rank Sum test (U test).
+
+```{r check normality, echo=FALSE}
+normalTest <- shapiro.test(F1$`Strain`)
+simple.eda(F1$`Strain`)
+normalTest
+```
+
+```{r, echo=FALSE}
+normalTest_F2 <- shapiro.test(F2$`Strain`)
+simple.eda(F2$`Strain`)
+normalTest_F2
+```
+
+```{r}
+normalTest_F3 <- shapiro.test(F3$`Strain`)
+simple.eda(F3$`Strain`)
+normalTest_F3
+```
+
+```{r}
+normalTest_F4 <- shapiro.test(F4$`Strain`)
+simple.eda(F4$`Strain`)
+normalTest_F4
+```
+```{r}
+normalTest_F5 <- shapiro.test(F5$`Strain`)
+simple.eda(F5$`Strain`)
+normalTest_F5
+```
+```{r}
+normalTest_F6 <- shapiro.test(F6$`Strain`)
+simple.eda(F6$`Strain`)
+normalTest_F6
+```
+```{r}
+normalTest_F7 <- shapiro.test(F7$`Strain`)
+simple.eda(F7$`Strain`)
+normalTest_F7
+```
+```{r}
+normalTest_F8 <- shapiro.test(F8$`Strain`)
+simple.eda(F8$`Strain`)
+normalTest_F8
+```
+
+
+## Run comparison
+
+```{r U-test, echo=FALSE}
+pstat <- compare_means(`Strain` ~ `GroupName`,data = inverseAspectRatio, method = "kruskal.test")
+pstat
+```
+
+## Run post-hoc
+
+```{r}
+dun <- inverseAspectRatio %>%
+  dunn_test(`Strain` ~ `GroupName`, p.adjust.method="bonferroni") %>%
+  add_xy_position(x="GroupName", fun = "mean_sd", dodge = 0.8)
+dun
+```
+
+
+## The plot
+
+```{r}
+ggbarplot(SynthesisMatrix, x="GroupName", y="mean", ylab = "Strain")+ 
+  geom_bar(stat="identity", position=position_dodge())+
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se), width=.2, position=position_dodge(.9))+
+  stat_pvalue_manual(dun, hide.ns = TRUE)+
+  ggtitle("Strech Strain XX on Nucleus")+
+  easy_center_title()+ 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+
+```{r}
+var.test(F5$Strain,F6$Strain)
+t.test(F5$Strain,F6$Strain,  var.equal = TRUE)
+```
+
+```{r}
+var.test(F1$Strain,F2$Strain)
+t.test(F1$Strain,F2$Strain,  var.equal = TRUE)
+```
+```{r}
+var.test(F3$Strain,F4$Strain)
+t.test(F3$Strain,F4$Strain,  var.equal = TRUE)
+```
+
+```{r}
+var.test(F7$Strain,F8$Strain)
+t.test(F7$Strain,F8$Strain,  var.equal = TRUE)
+```
+
+## Read equivalent stretch Excel
+
+```{r}
+inverseAspectRatio <- read_xlsx("F:/M2/でーたまとめ/statistic.xlsx",sheet = 2)
+inverseAspectRatio
+```
+### Create a seperated data sheet
+
+```{r}
+F1 <- subset.data.frame(inverseAspectRatio,inverseAspectRatio$`GroupName`=="5s2.5%0.005s")
+F2 <- subset.data.frame(inverseAspectRatio,inverseAspectRatio$`GroupName`=="1s2.5%0.025s")
+F3 <- subset.data.frame(inverseAspectRatio,inverseAspectRatio$`GroupName`=="8s4%0.005s")
+F4<- subset.data.frame(inverseAspectRatio,inverseAspectRatio$`GroupName`=="1.6s4%0.025s")
+F5<- subset.data.frame(inverseAspectRatio,inverseAspectRatio$`GroupName`=="10s5%0.005s")
+F6<- subset.data.frame(inverseAspectRatio,inverseAspectRatio$`GroupName`=="11s5%0.005s")
+F7<- subset.data.frame(inverseAspectRatio,inverseAspectRatio$`GroupName`=="2s5%0.025s")
+F8<- subset.data.frame(inverseAspectRatio,inverseAspectRatio$`GroupName`=="3s5%0.025s")
+```
+
+
+### Equivalent Strain matrix
+
+```{r}
+SynthesisMatrix <- inverseAspectRatio %>%
+  group_by(`Stretch`,`Speed`,`Time`,`GroupName`) %>%
+  summarise(
+    count = n(),
+    mean = mean(`Strain`, na.rm = TRUE),
+    sd = sd(`Strain`, na.rm = TRUE),
+    median = median(`Strain`, na.rm = TRUE),
+    IQR = IQR(`Strain`, na.rm = TRUE),
+    se = sd(`Strain`, na.rm = TRUE)/sqrt(n())
+  )
+SynthesisMatrix
+```
+
+### Equivalent strain comparison
+
+```{r U-test, echo=FALSE}
+pstat <- compare_means(`Strain` ~ `GroupName`,data = inverseAspectRatio, method = "kruskal.test")
+pstat
+```
+
+
+```{r}
+dun <- inverseAspectRatio %>%
+  dunn_test(`Strain` ~ `GroupName`, p.adjust.method="bonferroni") %>%
+  add_xy_position(x="GroupName", fun = "mean_sd", dodge = 0.8)
+dun
+```
+```{r}
+ggbarplot(SynthesisMatrix, x="GroupName", y="mean", ylab = "Strain")+ 
+  geom_bar(stat="identity", position=position_dodge())+
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se), width=.2, position=position_dodge(.9))+
+  stat_pvalue_manual(dun, hide.ns = TRUE)+
+  ggtitle("Strech Strain XX on Nucleus")+
+  easy_center_title()+ 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+```{r}
+var.test(F1$Strain,F2$Strain)
+t.test(F1$Strain,F2$Strain,  var.equal = FALSE)
+```
+```{r}
+var.test(F3$Strain,F4$Strain)
+t.test(F3$Strain,F4$Strain,  var.equal = TRUE)
+```
+
+```{r}
+var.test(F5$Strain,F6$Strain)
+t.test(F5$Strain,F6$Strain,  var.equal = TRUE)
+```
+
+```{r}
+var.test(F7$Strain,F8$Strain)
+t.test(F7$Strain,F8$Strain,  var.equal = TRUE)
+```
+

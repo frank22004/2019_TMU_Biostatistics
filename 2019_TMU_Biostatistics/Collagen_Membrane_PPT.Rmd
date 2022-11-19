@@ -1,0 +1,136 @@
+---
+title: "Collagen_Membrane_PPTx"
+author: "Frank"
+date: "2022-09-27"
+output: powerpoint_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## R Markdown
+
+This is an R Markdown presentation. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document.
+
+## Slide with Bullets
+
+-   Bullet 1
+-   Bullet 2
+-   Bullet 3
+
+## Slide with R Output
+
+```{r cars, echo = TRUE}
+library(RODBC)
+library(UsingR)
+library(ggpubr)
+library(ggplot2)
+library(ggsignif)
+library(dplyr)
+library(ggeasy)
+library(ggplot2)
+library(rstatix)
+```
+
+## Set up driver info and database path
+
+```{r access_path}
+DRIVERINFO <- "Driver={Microsoft Access Driver (*.mdb, *.accdb)};"
+MDBPATH <- "E:/OneDrive/文件/TMU-DESKTOP-SF2LD60.accdb"
+PATH <- paste0(DRIVERINFO, "DBQ=", MDBPATH)
+```
+
+## Establish connection
+
+```{r connection}
+channel <- odbcDriverConnect(PATH)
+```
+
+## Load data into R dataframe
+
+```{r Load}
+df <- sqlQuery(channel,"SELECT * FROM CollagenMembrane;", stringsAsFactors = FALSE)
+```
+
+## Table on the Data
+
+```{r Table}
+df_data <- subset.data.frame(df,Date=="2022-11-13" | Date=="2022-10-25" | Date=="2022-10-20")
+SynthesisMatrix <- df_data %>%
+  group_by(`Area`) %>%
+  summarise(
+    count = n(),
+    mean = mean(`Youngs Modulus (kPa)`, na.rm = TRUE),
+    sd = sd(`Youngs Modulus (kPa)`, na.rm = TRUE),
+    median = median(`Youngs Modulus (kPa)`, na.rm = TRUE),
+    IQR = IQR(`Youngs Modulus (kPa)`, na.rm = TRUE),
+    se = sd(`Youngs Modulus (kPa)`, na.rm = TRUE)/sqrt(n())
+  )
+SynthesisMatrix$Area <- factor(SynthesisMatrix$Area, levels = c("Lowest","Middle","Highest"))
+SynthesisMatrix
+```
+
+## Divide into the subgroups
+
+```{r divided}
+low <- subset.data.frame(df_data, Area =="Lowest")
+Mid <- subset.data.frame(df_data, Area =="Middle")
+High <- subset.data.frame(df_data, Area =="Highest")
+```
+
+## Check the normality
+
+```{r normal}
+normalTest <- shapiro.test(low$`Youngs Modulus (kPa)`)
+simple.eda(low$`Youngs Modulus (kPa)`)
+normalTest
+```
+```{r}
+normalTest <- shapiro.test(Mid$`Youngs Modulus (kPa)`)
+simple.eda(Mid$`Youngs Modulus (kPa)`)
+normalTest
+```
+```{r}
+normalTest <- shapiro.test(High$`Youngs Modulus (kPa)`)
+simple.eda(High$`Youngs Modulus (kPa)`)
+normalTest
+```
+## Comparison
+
+```{r}
+df_data <- rename(df_data,c("Youngs"="Youngs Modulus (kPa)"))
+pstat <- compare_means(`Youngs` ~ Area,data = df_data, method = "kruskal.test")
+pstat
+```
+
+## Run post-hoc
+
+```{r}
+dun <- df_data %>%
+  dunn_test(Youngs ~ Area, p.adjust.method="bonferroni") %>%
+  add_xy_position(x="Area", fun = "mean_sd", dodge = 0.8)
+dun
+```
+
+
+## Plot
+
+```{r}
+ggbarplot(SynthesisMatrix, x="Area", y="mean", ylab = "Youngs Modulus (kPa)", palette = "jco", label = TRUE)+ 
+  geom_bar(stat="identity", position=position_dodge())+
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se), width=.2, position=position_dodge(.9))+
+  stat_pvalue_manual(dun, hide.ns = TRUE)+
+  ggtitle("The stiffness of the compressed wedged collagen")+
+  easy_center_title()+ 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),axis.line = element_line(size = 0.9), axis.ticks = element_line(size = 0.9))
+```
+
+
+## Close and remove channel
+
+```{r}
+close(channel)
+```

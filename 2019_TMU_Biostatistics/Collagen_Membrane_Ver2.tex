@@ -1,0 +1,805 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+%
+\documentclass[
+]{article}
+\usepackage{amsmath,amssymb}
+\usepackage{lmodern}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math}
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{xcolor}
+\usepackage[margin=1in]{geometry}
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+% Add ',fontsize=\small' for more characters per line
+\usepackage{framed}
+\definecolor{shadecolor}{RGB}{248,248,248}
+\newenvironment{Shaded}{\begin{snugshade}}{\end{snugshade}}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{0.94,0.16,0.16}{#1}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.77,0.63,0.00}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\BuiltInTok}[1]{#1}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{0.64,0.00,0.00}{\textbf{#1}}}
+\newcommand{\ExtensionTok}[1]{#1}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\ImportTok}[1]{#1}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\NormalTok}[1]{#1}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.81,0.36,0.00}{\textbf{#1}}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{#1}}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\RegionMarkerTok}[1]{#1}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\usepackage{longtable,booktabs,array}
+\usepackage{calc} % for calculating minipage widths
+% Correct order of tables after \paragraph or \subparagraph
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+% Allow footnotes in longtable head/foot
+\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
+\makesavenoteenv{longtable}
+\usepackage{graphicx}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+% Set default figure placement to htbp
+\makeatletter
+\def\fps@figure{htbp}
+\makeatother
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+\ifLuaTeX
+  \usepackage{selnolig}  % disable illegal ligatures
+\fi
+\IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same} % disable monospaced font for URLs
+\hypersetup{
+  pdftitle={The repeatability and reproducibility of the Collagen Membrane},
+  pdfauthor={Frank},
+  hidelinks,
+  pdfcreator={LaTeX via pandoc}}
+
+\title{The repeatability and reproducibility of the Collagen Membrane}
+\author{Frank}
+\date{2022-09-27}
+
+\begin{document}
+\maketitle
+
+\hypertarget{configure-environment-and-include-the-data}{%
+\subsection{1. Configure environment and include the
+data}\label{configure-environment-and-include-the-data}}
+
+The analysis is powered by R version 4.2.1 (2022-06-23 ucrt). It
+requires the following packages:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{library}\NormalTok{(readxl)}
+\FunctionTok{library}\NormalTok{(UsingR)}
+\FunctionTok{library}\NormalTok{(lessR)}
+\FunctionTok{library}\NormalTok{(ggplot2)}
+\FunctionTok{library}\NormalTok{(knitr)}
+\FunctionTok{library}\NormalTok{(ggsignif)}
+\FunctionTok{library}\NormalTok{(ggpubr)}
+\FunctionTok{library}\NormalTok{(metRology)}
+\FunctionTok{library}\NormalTok{(outliers)}
+\FunctionTok{library}\NormalTok{(stats)}
+\FunctionTok{library}\NormalTok{(rstatix)}
+\end{Highlighting}
+\end{Shaded}
+
+Read the data from the excel files
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 38\tabcolsep) * \real{0.0604}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 38\tabcolsep) * \real{0.0302}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 38\tabcolsep) * \real{0.0302}}
+  >{\raggedleft\arraybackslash}p{(\columnwidth - 38\tabcolsep) * \real{0.0797}}
+  >{\raggedleft\arraybackslash}p{(\columnwidth - 38\tabcolsep) * \real{0.0879}}
+  >{\raggedleft\arraybackslash}p{(\columnwidth - 38\tabcolsep) * \real{0.0604}}
+  >{\raggedleft\arraybackslash}p{(\columnwidth - 38\tabcolsep) * \real{0.0412}}
+  >{\raggedleft\arraybackslash}p{(\columnwidth - 38\tabcolsep) * \real{0.0577}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 38\tabcolsep) * \real{0.0879}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 38\tabcolsep) * \real{0.0302}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 38\tabcolsep) * \real{0.0247}}
+  >{\raggedleft\arraybackslash}p{(\columnwidth - 38\tabcolsep) * \real{0.0275}}
+  >{\raggedleft\arraybackslash}p{(\columnwidth - 38\tabcolsep) * \real{0.0330}}
+  >{\raggedleft\arraybackslash}p{(\columnwidth - 38\tabcolsep) * \real{0.0412}}
+  >{\raggedleft\arraybackslash}p{(\columnwidth - 38\tabcolsep) * \real{0.0797}}
+  >{\raggedleft\arraybackslash}p{(\columnwidth - 38\tabcolsep) * \real{0.0440}}
+  >{\raggedleft\arraybackslash}p{(\columnwidth - 38\tabcolsep) * \real{0.0412}}
+  >{\raggedleft\arraybackslash}p{(\columnwidth - 38\tabcolsep) * \real{0.0467}}
+  >{\raggedleft\arraybackslash}p{(\columnwidth - 38\tabcolsep) * \real{0.0604}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 38\tabcolsep) * \real{0.0357}}@{}}
+\toprule()
+\begin{minipage}[b]{\linewidth}\raggedright
+Group Name
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Date.x
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Status
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Total solution quantity (ml)
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Ave. AFM Fathom Dish Depth (μm)
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+AFM fathom Depth (μm)
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Thickness (μm)
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Youngs Modulus (kPa)
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Group
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Date.y
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Person
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Buffer pH
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Buffer (μl)
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+10x MEM-α (μl)
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+5 mg/ml Type I collagen (μl)
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Total Sol. (μl)
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Incubate (min)
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Centrifuge (rpm)
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Centrifuge Time (min)
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Observations
+\end{minipage} \\
+\midrule()
+\endhead
+44075pH7.7RPM3000MIN5 & 2020-09-01 & Compressed & 1 & 4331.506 &
+4240.659 & 90.847 & NA & 44075pH7.7RPM3000MIN5Compressed & 2020-09-01 &
+Oyamasan & 7.7 & 0 & 0 & 0 & NA & NA & 3000 & 5 & NA \\
+44075pH7.7RPM3000MIN5 & 2020-09-01 & Compressed & 1 & 4331.506 &
+4238.562 & 92.944 & NA & 44075pH7.7RPM3000MIN5Compressed & 2020-09-01 &
+Oyamasan & 7.7 & 0 & 0 & 0 & NA & NA & 3000 & 5 & NA \\
+44075pH7.7RPM3000MIN5 & 2020-09-01 & Compressed & 1 & 4331.506 &
+4232.534 & 98.972 & NA & 44075pH7.7RPM3000MIN5Compressed & 2020-09-01 &
+Oyamasan & 7.7 & 0 & 0 & 0 & NA & NA & 3000 & 5 & NA \\
+44075pH7.7RPM3000MIN5 & 2020-09-01 & Compressed & 1 & 4331.506 &
+4230.881 & 100.625 & NA & 44075pH7.7RPM3000MIN5Compressed & 2020-09-01 &
+Oyamasan & 7.7 & 0 & 0 & 0 & NA & NA & 3000 & 5 & NA \\
+44075pH7.7RPM3000MIN5 & 2020-09-01 & Compressed & 1 & 4331.506 &
+4202.131 & 129.375 & NA & 44075pH7.7RPM3000MIN5Compressed & 2020-09-01 &
+Oyamasan & 7.7 & 0 & 0 & 0 & NA & NA & 3000 & 5 & NA \\
+\bottomrule()
+\end{longtable}
+
+\hypertarget{group-the-data-based-on-the-buffer-ph-centrifuge-force-and-centrifuge-time}{%
+\subsection{2. Group the data based on the buffer pH, centrifuge force,
+and centrifuge
+time}\label{group-the-data-based-on-the-buffer-ph-centrifuge-force-and-centrifuge-time}}
+
+\hypertarget{construct-the-sub-datasets-for-analysis}{%
+\subsubsection{2.1. construct the sub datasets for
+analysis}\label{construct-the-sub-datasets-for-analysis}}
+
+\hypertarget{uncompressed}{%
+\subsubsection{2.2. Uncompressed}\label{uncompressed}}
+
+\hypertarget{the-means-of-ph-7.7-collagen-without-compression-in-different-time}{%
+\paragraph{2.2.1. The means of pH 7.7 collagen without compression in
+different
+time}\label{the-means-of-ph-7.7-collagen-without-compression-in-different-time}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{xtabs}\NormalTok{(}\StringTok{\textasciigrave{}}\AttributeTok{Thickness (μm)}\StringTok{\textasciigrave{}} \SpecialCharTok{\textasciitilde{}}\NormalTok{ Date }\SpecialCharTok{+}\NormalTok{ Operator, }\FunctionTok{aggregate}\NormalTok{(}
+\NormalTok{  reproducibilityUncomp[}\FunctionTok{c}\NormalTok{(}\StringTok{"Thickness (μm)"}\NormalTok{)],}
+  \FunctionTok{list}\NormalTok{(}\AttributeTok{Date =}\NormalTok{ reproducibilityUncomp}\SpecialCharTok{$}\NormalTok{Date.x,}
+       \AttributeTok{Operator =}\NormalTok{ reproducibilityUncomp}\SpecialCharTok{$}\NormalTok{Person),}
+\NormalTok{  mean}
+\NormalTok{))}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+##             Operator
+## Date            Frank     沢崎
+##   2021-12-27   0.0000 499.5648
+##   2022-08-28 471.7582   0.0000
+##   2022-09-04 259.6742   0.0000
+##   2022-09-08 293.5103   0.0000
+##   2022-09-14 385.9428   0.0000
+\end{verbatim}
+
+\hypertarget{the-sd-of-ph-7.7-collagen-without-compression-in-different-time}{%
+\paragraph{2.2.2. The SD of pH 7.7 collagen without compression in
+different
+time}\label{the-sd-of-ph-7.7-collagen-without-compression-in-different-time}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{xtabs}\NormalTok{(}\StringTok{\textasciigrave{}}\AttributeTok{Thickness (μm)}\StringTok{\textasciigrave{}} \SpecialCharTok{\textasciitilde{}}\NormalTok{ Date }\SpecialCharTok{+}\NormalTok{ Operator, }\FunctionTok{aggregate}\NormalTok{(}
+\NormalTok{  reproducibilityUncomp[}\FunctionTok{c}\NormalTok{(}\StringTok{"Thickness (μm)"}\NormalTok{)],}
+  \FunctionTok{list}\NormalTok{(}\AttributeTok{Date =}\NormalTok{ reproducibilityUncomp}\SpecialCharTok{$}\NormalTok{Date.x,}
+       \AttributeTok{Operator =}\NormalTok{ reproducibilityUncomp}\SpecialCharTok{$}\NormalTok{Person),}
+\NormalTok{  sd}
+\NormalTok{))}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+##             Operator
+## Date            Frank     沢崎
+##   2021-12-27  0.00000 72.99595
+##   2022-08-28 85.20293  0.00000
+##   2022-09-04 34.35673  0.00000
+##   2022-09-08 17.12355  0.00000
+##   2022-09-14 13.99215  0.00000
+\end{verbatim}
+
+\hypertarget{compressed-at-3000-rpm-for-10-min}{%
+\subsubsection{2.3. Compressed at 3000 rpm for 10
+min}\label{compressed-at-3000-rpm-for-10-min}}
+
+\hypertarget{the-means-of-ph-7.7-collagen-after-compressed}{%
+\paragraph{2.3.1. The means of pH 7.7 collagen after
+compressed}\label{the-means-of-ph-7.7-collagen-after-compressed}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{xtabs}\NormalTok{(}\StringTok{\textasciigrave{}}\AttributeTok{Thickness (μm)}\StringTok{\textasciigrave{}} \SpecialCharTok{\textasciitilde{}}\NormalTok{ Date }\SpecialCharTok{+}\NormalTok{ Operator, }\FunctionTok{aggregate.data.frame}\NormalTok{(}
+\NormalTok{  reproducibilitycomp[}\FunctionTok{c}\NormalTok{(}\StringTok{"Thickness (μm)"}\NormalTok{)],}
+  \FunctionTok{list}\NormalTok{(}\AttributeTok{Date =}\NormalTok{ reproducibilitycomp}\SpecialCharTok{$}\NormalTok{Date.x,}
+       \AttributeTok{Operator =}\NormalTok{ reproducibilitycomp}\SpecialCharTok{$}\NormalTok{Person),}
+\NormalTok{  mean}
+\NormalTok{))}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+##             Operator
+## Date             Frank      沢崎
+##   2021-12-27   0.00000  42.78022
+##   2022-09-01 137.87673   0.00000
+\end{verbatim}
+
+\hypertarget{the-sd-of-ph-7.7-collagen-after-compressed}{%
+\paragraph{2.3.2. The SD of pH 7.7 collagen after
+compressed}\label{the-sd-of-ph-7.7-collagen-after-compressed}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{xtabs}\NormalTok{(}\StringTok{\textasciigrave{}}\AttributeTok{Thickness (μm)}\StringTok{\textasciigrave{}} \SpecialCharTok{\textasciitilde{}}\NormalTok{ Date }\SpecialCharTok{+}\NormalTok{ Operator, }\FunctionTok{aggregate.data.frame}\NormalTok{(}
+\NormalTok{  reproducibilitycomp[}\FunctionTok{c}\NormalTok{(}\StringTok{"Thickness (μm)"}\NormalTok{)],}
+  \FunctionTok{list}\NormalTok{(}\AttributeTok{Date =}\NormalTok{ reproducibilitycomp}\SpecialCharTok{$}\NormalTok{Date.x,}
+       \AttributeTok{Operator =}\NormalTok{ reproducibilitycomp}\SpecialCharTok{$}\NormalTok{Person),}
+\NormalTok{  sd}
+\NormalTok{))}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+##             Operator
+## Date             Frank      沢崎
+##   2021-12-27  0.000000  9.426426
+##   2022-09-01 10.487338  0.000000
+\end{verbatim}
+
+\hypertarget{outlier}{%
+\subsection{3. outlier}\label{outlier}}
+
+\hypertarget{repeatability-cochrans-c-test}{%
+\subsubsection{3.1. Repeatability (Cochran's C
+test)}\label{repeatability-cochrans-c-test}}
+
+\hypertarget{the-uncompressed}{%
+\paragraph{3.1.1. The uncompressed}\label{the-uncompressed}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{cochran.test}\NormalTok{(}\StringTok{\textasciigrave{}}\AttributeTok{Thickness (μm)}\StringTok{\textasciigrave{}} \SpecialCharTok{\textasciitilde{}}\NormalTok{ Date.x, }\FunctionTok{subset.data.frame}\NormalTok{(reproducibilityUncomp,Person }\SpecialCharTok{==} \StringTok{"Frank"}\NormalTok{))}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## 
+##  Cochran test for outlying variance
+## 
+## data:  `Thickness (μm)` ~ Date.x
+## C = 0.81304, df = 5, k = 4, p-value = 0.001004
+## alternative hypothesis: Group 2022-08-28 has outlying variance
+## sample estimates:
+## 2022-08-28 2022-09-04 2022-09-08 2022-09-14 
+##  7259.5384  1180.3846   293.2159   195.7804
+\end{verbatim}
+
+\hypertarget{try-to-eliminate-the-outliers}{%
+\subparagraph{Try to eliminate the
+outliers}\label{try-to-eliminate-the-outliers}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{cochran.test}\NormalTok{(}\StringTok{\textasciigrave{}}\AttributeTok{Thickness (μm)}\StringTok{\textasciigrave{}} \SpecialCharTok{\textasciitilde{}}\NormalTok{ Date.x, }\FunctionTok{subset.data.frame}\NormalTok{(reproducibilityUncomp[}\SpecialCharTok{{-}}\FunctionTok{c}\NormalTok{(}\DecValTok{19}\NormalTok{,}\DecValTok{20}\NormalTok{),], Person }\SpecialCharTok{==} \StringTok{"Frank"}\NormalTok{))}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## 
+##  Cochran test for outlying variance
+## 
+## data:  `Thickness (μm)` ~ Date.x
+## C = 0.47112, df = 4.5, k = 4.0, p-value = 0.3844
+## alternative hypothesis: Group 2022-09-04 has outlying variance
+## sample estimates:
+## 2022-08-28 2022-09-04 2022-09-08 2022-09-14 
+##   836.1023  1180.3846   293.2159   195.7804
+\end{verbatim}
+
+It has shown that 2022-08-28 has outlying variance. The outliers are
+fathomed at quater 3 and 4 in 35mm Petri Dish. The plausible reason
+might be that the unbalanced stage of AFM cause various the depth for
+the first time. I measure the precise data after the second try.
+
+\hypertarget{the-compressed}{%
+\paragraph{3.1.2. The compressed}\label{the-compressed}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{cochran.test}\NormalTok{(}\StringTok{\textasciigrave{}}\AttributeTok{Thickness (μm)}\StringTok{\textasciigrave{}} \SpecialCharTok{\textasciitilde{}}\NormalTok{ Date.x, }\FunctionTok{subset.data.frame}\NormalTok{(reproducibilitycomp, Person }\SpecialCharTok{==} \StringTok{"Frank"}\NormalTok{))}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## 
+##  Cochran test for outlying variance
+## 
+## data:  `Thickness (μm)` ~ Date.x
+## C = 1, df = 5, k = 1, p-value = NA
+## alternative hypothesis: Group 2022-09-01 has outlying variance
+## sample estimates:
+## 2022-09-01 
+##   109.9843
+\end{verbatim}
+
+Only one group can't compare to the previous.
+
+\hypertarget{reproducibility-grubbs-test}{%
+\subsubsection{3.2. Reproducibility (Grubbs'
+Test)}\label{reproducibility-grubbs-test}}
+
+\hypertarget{the-uncompressed-1}{%
+\paragraph{3.2.1 The uncompressed}\label{the-uncompressed-1}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{grubbs.test}\NormalTok{(}\FunctionTok{aggregate.data.frame}\NormalTok{(}
+\NormalTok{  reproducibilityUncomp[}\FunctionTok{c}\NormalTok{(}\StringTok{"Thickness (μm)"}\NormalTok{)],}
+  \FunctionTok{list}\NormalTok{(}\AttributeTok{Date =}\NormalTok{ reproducibilityUncomp}\SpecialCharTok{$}\NormalTok{Date.x),}
+\NormalTok{  mean}
+\NormalTok{)}\SpecialCharTok{$}\StringTok{\textasciigrave{}}\AttributeTok{Thickness (μm)}\StringTok{\textasciigrave{}}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## 
+##  Grubbs test for one outlier
+## 
+## data:  aggregate.data.frame(reproducibilityUncomp[c("Thickness (μm)")],     list(Date = reproducibilityUncomp$Date.x), mean)$`Thickness (μm)`
+## G = 1.15818, U = 0.58082, p-value = 0.5939
+## alternative hypothesis: lowest value 259.6742 is an outlier
+\end{verbatim}
+
+\hypertarget{mandels-h-plot}{%
+\subparagraph{3.2.1.1. Mandel's h plot}\label{mandels-h-plot}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{h\_u }\OtherTok{\textless{}{-}} \FunctionTok{with}\NormalTok{(reproducibilityUncomp, }\FunctionTok{mandel.h}\NormalTok{(}\StringTok{\textasciigrave{}}\AttributeTok{Thickness (μm)}\StringTok{\textasciigrave{}}\NormalTok{, }\AttributeTok{g =}\NormalTok{ Date.x))}
+    \FunctionTok{barplot}\NormalTok{(h\_u,}\AttributeTok{las=}\DecValTok{2}\NormalTok{,}\AttributeTok{col=}\FunctionTok{c}\NormalTok{(}\DecValTok{2}\NormalTok{,}\DecValTok{3}\NormalTok{,}\DecValTok{3}\NormalTok{,}\DecValTok{3}\NormalTok{,}\DecValTok{3}\NormalTok{))}
+    \FunctionTok{legend}\NormalTok{(}\StringTok{"topright"}\NormalTok{,}\AttributeTok{legend =} \FunctionTok{levels}\NormalTok{(}\FunctionTok{as.factor}\NormalTok{(reproducibilityUncomp}\SpecialCharTok{$}\NormalTok{Person)),}\AttributeTok{fill =} \FunctionTok{c}\NormalTok{(}\DecValTok{3}\NormalTok{,}\DecValTok{2}\NormalTok{), }\AttributeTok{cex=}\FloatTok{0.6}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{Collagen_Membrane_Ver2_files/figure-latex/unnamed-chunk-9-1.pdf}
+
+\hypertarget{mandels-k-plot}{%
+\subparagraph{3.2.1.2. Mandel's k plot}\label{mandels-k-plot}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{k }\OtherTok{\textless{}{-}} \FunctionTok{with}\NormalTok{(reproducibilityUncomp, }\FunctionTok{mandel.k}\NormalTok{(}\StringTok{\textasciigrave{}}\AttributeTok{Thickness (μm)}\StringTok{\textasciigrave{}}\NormalTok{, }\AttributeTok{g =}\NormalTok{ Date.x))}
+    \FunctionTok{barplot}\NormalTok{(k,}\AttributeTok{las=}\DecValTok{2}\NormalTok{,}\AttributeTok{col=}\FunctionTok{c}\NormalTok{(}\DecValTok{2}\NormalTok{,}\DecValTok{3}\NormalTok{,}\DecValTok{3}\NormalTok{,}\DecValTok{3}\NormalTok{,}\DecValTok{3}\NormalTok{))}
+    \FunctionTok{legend}\NormalTok{(}\StringTok{"topright"}\NormalTok{,}\AttributeTok{legend =} \FunctionTok{levels}\NormalTok{(}\FunctionTok{as.factor}\NormalTok{(reproducibilityUncomp}\SpecialCharTok{$}\NormalTok{Person)),}\AttributeTok{fill =} \FunctionTok{c}\NormalTok{(}\DecValTok{3}\NormalTok{,}\DecValTok{2}\NormalTok{), }\AttributeTok{cex=}\FloatTok{0.6}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{Collagen_Membrane_Ver2_files/figure-latex/unnamed-chunk-10-1.pdf}
+
+The uncompressed group has no significant outlier though Mandel's k
+indicate higher SD at 8/28.
+
+\hypertarget{the-compressed-1}{%
+\paragraph{3.2.2. The compressed}\label{the-compressed-1}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{grubbs.test}\NormalTok{(}\FunctionTok{aggregate.data.frame}\NormalTok{(}
+\NormalTok{  reproducibilitycomp[}\FunctionTok{c}\NormalTok{(}\StringTok{"Thickness (μm)"}\NormalTok{)],}
+  \FunctionTok{list}\NormalTok{(}\AttributeTok{Date =}\NormalTok{ reproducibilitycomp}\SpecialCharTok{$}\NormalTok{Date.x),}
+\NormalTok{  mean}
+\NormalTok{)}\SpecialCharTok{$}\StringTok{\textasciigrave{}}\AttributeTok{Thickness (μm)}\StringTok{\textasciigrave{}}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## 
+##  Grubbs test for one outlier
+## 
+## data:  aggregate.data.frame(reproducibilitycomp[c("Thickness (μm)")],     list(Date = reproducibilitycomp$Date.x), mean)$`Thickness (μm)`
+## G = 0.70711, U = NA, p-value = NA
+## alternative hypothesis: highest value 137.876727272727 is an outlier
+\end{verbatim}
+
+\hypertarget{mandels-h-plot-1}{%
+\subparagraph{3.2.2.1. Mandel's h plot}\label{mandels-h-plot-1}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{h }\OtherTok{\textless{}{-}} \FunctionTok{with}\NormalTok{(reproducibilitycomp, }\FunctionTok{mandel.h}\NormalTok{(}\StringTok{\textasciigrave{}}\AttributeTok{Thickness (μm)}\StringTok{\textasciigrave{}}\NormalTok{, }\AttributeTok{g =}\NormalTok{ Date.x))}
+\FunctionTok{barplot}\NormalTok{(h,}\AttributeTok{las=}\DecValTok{2}\NormalTok{,}\AttributeTok{col=}\FunctionTok{c}\NormalTok{(}\DecValTok{2}\NormalTok{,}\DecValTok{3}\NormalTok{))}
+\FunctionTok{legend}\NormalTok{(}\StringTok{"topright"}\NormalTok{,}\AttributeTok{legend =} \FunctionTok{levels}\NormalTok{(}\FunctionTok{as.factor}\NormalTok{(reproducibilitycomp}\SpecialCharTok{$}\NormalTok{Person)),}\AttributeTok{fill =} \FunctionTok{c}\NormalTok{(}\DecValTok{3}\NormalTok{,}\DecValTok{2}\NormalTok{), }\AttributeTok{cex=}\FloatTok{0.6}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{Collagen_Membrane_Ver2_files/figure-latex/unnamed-chunk-12-1.pdf}
+
+\hypertarget{mandels-k-plot-1}{%
+\subparagraph{3.2.2.2. Mandel's k plot}\label{mandels-k-plot-1}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{k }\OtherTok{\textless{}{-}} \FunctionTok{with}\NormalTok{(reproducibilitycomp, }\FunctionTok{mandel.k}\NormalTok{(}\StringTok{\textasciigrave{}}\AttributeTok{Thickness (μm)}\StringTok{\textasciigrave{}}\NormalTok{, }\AttributeTok{g =}\NormalTok{ Date.x))}
+\FunctionTok{barplot}\NormalTok{(k,}\AttributeTok{las=}\DecValTok{2}\NormalTok{,}\AttributeTok{col=}\FunctionTok{c}\NormalTok{(}\DecValTok{2}\NormalTok{,}\DecValTok{3}\NormalTok{))}
+\FunctionTok{legend}\NormalTok{(}\StringTok{"topright"}\NormalTok{,}\AttributeTok{legend =} \FunctionTok{levels}\NormalTok{(}\FunctionTok{as.factor}\NormalTok{(reproducibilitycomp}\SpecialCharTok{$}\NormalTok{Person)),}\AttributeTok{fill =} \FunctionTok{c}\NormalTok{(}\DecValTok{3}\NormalTok{,}\DecValTok{2}\NormalTok{), }\AttributeTok{cex=}\FloatTok{0.6}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{Collagen_Membrane_Ver2_files/figure-latex/unnamed-chunk-13-1.pdf}
+
+The repeatability conducted by Cochran's C test has shown that
+2022-08-28 has outlying variance. After compressed, the thickness of
+collagen membrane doesn't contains the outliers.
+
+\hypertarget{the-relationship-between-sd-and-means}{%
+\subsection{4. The relationship between SD and
+means}\label{the-relationship-between-sd-and-means}}
+
+\hypertarget{the-uncompressed-2}{%
+\subsubsection{4.1. The uncompressed}\label{the-uncompressed-2}}
+
+\hypertarget{linear-model}{%
+\paragraph{4.1.1. Linear model}\label{linear-model}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{cor}\NormalTok{(UncompSD}\SpecialCharTok{$}\StringTok{\textasciigrave{}}\AttributeTok{Thickness (μm)}\StringTok{\textasciigrave{}}\NormalTok{, UncompMean}\SpecialCharTok{$}\StringTok{\textasciigrave{}}\AttributeTok{Thickness (μm)}\StringTok{\textasciigrave{}}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## [1] 0.765138
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{lmuncomp }\OtherTok{\textless{}{-}} \FunctionTok{lm}\NormalTok{(UncompSD}\SpecialCharTok{$}\StringTok{\textasciigrave{}}\AttributeTok{Thickness (μm)}\StringTok{\textasciigrave{}} \SpecialCharTok{\textasciitilde{}}\NormalTok{ UncompMean}\SpecialCharTok{$}\StringTok{\textasciigrave{}}\AttributeTok{Thickness (μm)}\StringTok{\textasciigrave{}}\NormalTok{)}
+\FunctionTok{summary}\NormalTok{(lmuncomp)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## 
+## Call:
+## lm(formula = UncompSD$`Thickness (μm)` ~ UncompMean$`Thickness (μm)`)
+## 
+## Residuals:
+##        1        2        3        4        5 
+##   0.5371  19.3066  18.5132  -6.7055 -31.6514 
+## 
+## Coefficients:
+##                             Estimate Std. Error t value Pr(>|t|)
+## (Intercept)                 -45.4408    45.1320  -1.007    0.388
+## UncompMean$`Thickness (μm)`   0.2360     0.1147   2.058    0.132
+## 
+## Residual standard error: 24.24 on 3 degrees of freedom
+## Multiple R-squared:  0.5854, Adjusted R-squared:  0.4472 
+## F-statistic: 4.237 on 1 and 3 DF,  p-value: 0.1317
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{simple.lm}\NormalTok{(UncompMean}\SpecialCharTok{$}\StringTok{\textasciigrave{}}\AttributeTok{Thickness (μm)}\StringTok{\textasciigrave{}}\NormalTok{,UncompSD}\SpecialCharTok{$}\StringTok{\textasciigrave{}}\AttributeTok{Thickness (μm)}\StringTok{\textasciigrave{}}\NormalTok{,}\AttributeTok{show.residuals =} \ConstantTok{TRUE}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{Collagen_Membrane_Ver2_files/figure-latex/unnamed-chunk-15-1.pdf}
+
+\begin{verbatim}
+## 
+## Call:
+## lm(formula = y ~ x)
+## 
+## Coefficients:
+## (Intercept)            x  
+##     -45.441        0.236
+\end{verbatim}
+
+\hypertarget{log-model}{%
+\paragraph{4.1.2. Log model}\label{log-model}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{loguncomp }\OtherTok{\textless{}{-}} \FunctionTok{lm}\NormalTok{(}\FunctionTok{log10}\NormalTok{(UncompSD}\SpecialCharTok{$}\StringTok{\textasciigrave{}}\AttributeTok{Thickness (μm)}\StringTok{\textasciigrave{}}\NormalTok{) }\SpecialCharTok{\textasciitilde{}} \FunctionTok{log10}\NormalTok{(UncompMean}\SpecialCharTok{$}\StringTok{\textasciigrave{}}\AttributeTok{Thickness (μm)}\StringTok{\textasciigrave{}}\NormalTok{))}
+\FunctionTok{summary}\NormalTok{(loguncomp)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## 
+## Call:
+## lm(formula = log10(UncompSD$`Thickness (μm)`) ~ log10(UncompMean$`Thickness (μm)`))
+## 
+## Residuals:
+##        1        2        3        4        5 
+##  0.09604  0.20618  0.25991 -0.13446 -0.42767 
+## 
+## Coefficients:
+##                                    Estimate Std. Error t value Pr(>|t|)
+## (Intercept)                          -2.897      3.367   -0.86    0.453
+## log10(UncompMean$`Thickness (μm)`)    1.728      1.310    1.32    0.279
+## 
+## Residual standard error: 0.3267 on 3 degrees of freedom
+## Multiple R-squared:  0.3673, Adjusted R-squared:  0.1564 
+## F-statistic: 1.742 on 1 and 3 DF,  p-value: 0.2786
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{simple.lm}\NormalTok{(}\FunctionTok{log10}\NormalTok{(UncompMean}\SpecialCharTok{$}\StringTok{\textasciigrave{}}\AttributeTok{Thickness (μm)}\StringTok{\textasciigrave{}}\NormalTok{),}\FunctionTok{log10}\NormalTok{(UncompSD}\SpecialCharTok{$}\StringTok{\textasciigrave{}}\AttributeTok{Thickness (μm)}\StringTok{\textasciigrave{}}\NormalTok{), }\AttributeTok{show.residuals =} \ConstantTok{TRUE}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{Collagen_Membrane_Ver2_files/figure-latex/unnamed-chunk-17-1.pdf}
+
+\begin{verbatim}
+## 
+## Call:
+## lm(formula = y ~ x)
+## 
+## Coefficients:
+## (Intercept)            x  
+##      -2.897        1.728
+\end{verbatim}
+
+The uncompressed thickness doesn't fit the linear and log model. The
+pearson correlation indicates the thicker the collagen membrane is, the
+higher SD the measurement is. The plausible reason might be the dispense
+error which results in the undulated surface at first trial. The
+correction measurement is to stir the Petri dish as soon as dispensing
+the collagen mixture.
+
+\hypertarget{the-compressed-2}{%
+\subsubsection{4.2. The compressed}\label{the-compressed-2}}
+
+\hypertarget{linear-model-1}{%
+\paragraph{4.2.1. Linear model}\label{linear-model-1}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{cor}\NormalTok{(compSD}\SpecialCharTok{$}\StringTok{\textasciigrave{}}\AttributeTok{Thickness (μm)}\StringTok{\textasciigrave{}}\NormalTok{, compMean}\SpecialCharTok{$}\StringTok{\textasciigrave{}}\AttributeTok{Thickness (μm)}\StringTok{\textasciigrave{}}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## [1] 1
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{lmcomp }\OtherTok{\textless{}{-}} \FunctionTok{lm}\NormalTok{(compSD}\SpecialCharTok{$}\StringTok{\textasciigrave{}}\AttributeTok{Thickness (μm)}\StringTok{\textasciigrave{}} \SpecialCharTok{\textasciitilde{}}\NormalTok{ compMean}\SpecialCharTok{$}\StringTok{\textasciigrave{}}\AttributeTok{Thickness (μm)}\StringTok{\textasciigrave{}}\NormalTok{)}
+\FunctionTok{summary}\NormalTok{(lmcomp)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## 
+## Call:
+## lm(formula = compSD$`Thickness (μm)` ~ compMean$`Thickness (μm)`)
+## 
+## Residuals:
+## ALL 2 residuals are 0: no residual degrees of freedom!
+## 
+## Coefficients:
+##                           Estimate Std. Error t value Pr(>|t|)
+## (Intercept)                8.94916        NaN     NaN      NaN
+## compMean$`Thickness (μm)`  0.01116        NaN     NaN      NaN
+## 
+## Residual standard error: NaN on 0 degrees of freedom
+## Multiple R-squared:      1,  Adjusted R-squared:    NaN 
+## F-statistic:   NaN on 1 and 0 DF,  p-value: NA
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{simple.lm}\NormalTok{(compMean}\SpecialCharTok{$}\StringTok{\textasciigrave{}}\AttributeTok{Thickness (μm)}\StringTok{\textasciigrave{}}\NormalTok{,compSD}\SpecialCharTok{$}\StringTok{\textasciigrave{}}\AttributeTok{Thickness (μm)}\StringTok{\textasciigrave{}}\NormalTok{,}\AttributeTok{show.residuals =} \ConstantTok{TRUE}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{Collagen_Membrane_Ver2_files/figure-latex/unnamed-chunk-19-1.pdf}
+
+\begin{verbatim}
+## 
+## Call:
+## lm(formula = y ~ x)
+## 
+## Coefficients:
+## (Intercept)            x  
+##     8.94916      0.01116
+\end{verbatim}
+
+It fits the linear line though the small sample size data exists. Thus,
+log model is unnecessary. It is consistent with the uncompressed
+collagen membrane. The thicker the collagen membrane is, the higher SD
+the measurement is.
+
+\hypertarget{reproducibility-by-one-way-anova}{%
+\subsection{5. Reproducibility by one-way
+ANOVA}\label{reproducibility-by-one-way-anova}}
+
+\hypertarget{the-uncompressed-3}{%
+\subsubsection{5.1. The uncompressed}\label{the-uncompressed-3}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{reproducibilityUncomp}\SpecialCharTok{$}\NormalTok{Date.x }\OtherTok{\textless{}{-}} \FunctionTok{as.factor}\NormalTok{(reproducibilityUncomp}\SpecialCharTok{$}\NormalTok{Date.x)}
+\CommentTok{\#Supported by Reddit}
+\NormalTok{UncompANOVA }\OtherTok{\textless{}{-}} \FunctionTok{aov}\NormalTok{(}\StringTok{\textasciigrave{}}\AttributeTok{Thickness (μm)}\StringTok{\textasciigrave{}} \SpecialCharTok{\textasciitilde{}}\NormalTok{ Date.x, }\AttributeTok{data =}\NormalTok{ reproducibilityUncomp)}
+\FunctionTok{summary}\NormalTok{(UncompANOVA)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+##             Df Sum Sq Mean Sq F value       Pr(>F)    
+## Date.x       4 322011   80503   21.89 0.0000000154 ***
+## Residuals   30 110313    3677                         
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{tukeyUncomp }\OtherTok{\textless{}{-}} \FunctionTok{tukey\_hsd}\NormalTok{(UncompANOVA)}
+\NormalTok{tukeyUncomp}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## # A tibble: 10 x 9
+##    term   group1     group2     null.v~1 estim~2 conf.~3 conf.~4   p.adj p.adj~5
+##  * <chr>  <chr>      <chr>         <dbl>   <dbl>   <dbl>   <dbl>   <dbl> <chr>  
+##  1 Date.x 2021-12-27 2022-08-28        0   -27.8  -119.     63.0 8.99e-1 ns     
+##  2 Date.x 2021-12-27 2022-09-04        0  -240.   -331.   -149.  1.47e-7 ****   
+##  3 Date.x 2021-12-27 2022-09-08        0  -206.   -297.   -115.  2.66e-6 ****   
+##  4 Date.x 2021-12-27 2022-09-14        0  -114.   -204.    -22.8 8.6 e-3 **     
+##  5 Date.x 2022-08-28 2022-09-04        0  -212.   -323.   -101.  4.85e-5 ****   
+##  6 Date.x 2022-08-28 2022-09-08        0  -178.   -289.    -67.0 5.63e-4 ***    
+##  7 Date.x 2022-08-28 2022-09-14        0   -85.8  -197.     25.4 1.94e-1 ns     
+##  8 Date.x 2022-09-04 2022-09-08        0    33.8   -77.4   145.  9.01e-1 ns     
+##  9 Date.x 2022-09-04 2022-09-14        0   126.     15.0   238.  1.99e-2 *      
+## 10 Date.x 2022-09-08 2022-09-14        0    92.4   -18.8   204.  1.4 e-1 ns     
+## # ... with abbreviated variable names 1: null.value, 2: estimate, 3: conf.low,
+## #   4: conf.high, 5: p.adj.signif
+\end{verbatim}
+
+\includegraphics{Collagen_Membrane_Ver2_files/figure-latex/uncomp_boxplot-1.pdf}
+
+\hypertarget{the-compressed-3}{%
+\subsubsection{5.2. The compressed}\label{the-compressed-3}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{reproducibilitycomp}\SpecialCharTok{$}\NormalTok{Date.x }\OtherTok{\textless{}{-}} \FunctionTok{as.factor}\NormalTok{(reproducibilitycomp}\SpecialCharTok{$}\NormalTok{Date.x)}
+\NormalTok{compANOVA }\OtherTok{\textless{}{-}} \FunctionTok{aov}\NormalTok{(}\StringTok{\textasciigrave{}}\AttributeTok{Thickness (μm)}\StringTok{\textasciigrave{}} \SpecialCharTok{\textasciitilde{}}\NormalTok{ Date.x, }\AttributeTok{data =}\NormalTok{ reproducibilitycomp)}
+\FunctionTok{summary}\NormalTok{(compANOVA)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+##             Df Sum Sq Mean Sq F value            Pr(>F)    
+## Date.x       1  33913   33913   362.5 0.000000000000225 ***
+## Residuals   18   1684      94                              
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{tukeycomp }\OtherTok{\textless{}{-}} \FunctionTok{tukey\_hsd}\NormalTok{(compANOVA)}
+\NormalTok{tukeycomp}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## # A tibble: 1 x 9
+##   term   group1     group2     null.v~1 estim~2 conf.~3 conf.~4    p.adj p.adj~5
+## * <chr>  <chr>      <chr>         <dbl>   <dbl>   <dbl>   <dbl>    <dbl> <chr>  
+## 1 Date.x 2021-12-27 2022-09-01        0    95.1    84.6    106. 2.32e-13 ****   
+## # ... with abbreviated variable names 1: null.value, 2: estimate, 3: conf.low,
+## #   4: conf.high, 5: p.adj.signif
+\end{verbatim}
+
+\includegraphics{Collagen_Membrane_Ver2_files/figure-latex/comp_boxplot-1.pdf}
+
+\hypertarget{conclusion-the-reproducibility-conducted-by-grubbs-test-has-shown-that-the-measurement-error-is-consistent-with-ux6ca2ux5d0eux3055ux3093-even-compressed.-however-the-mean-thickness-of-the-collagen-membrane-are-out-of-the-previous-data.}{%
+\section{Conclusion: The reproducibility conducted by Grubbs' test has
+shown that the measurement error is consistent with 沢崎さん even
+compressed. However, the mean thickness of the collagen membrane are out
+of the previous
+data.}\label{conclusion-the-reproducibility-conducted-by-grubbs-test-has-shown-that-the-measurement-error-is-consistent-with-ux6ca2ux5d0eux3055ux3093-even-compressed.-however-the-mean-thickness-of-the-collagen-membrane-are-out-of-the-previous-data.}}
+
+\end{document}
