@@ -24,6 +24,7 @@ library(ggsignif)
 library(ggeasy)
 library(PMCMR)
 library(PMCMRplus)
+library(fitdistrplus)
 ```
 
 Read the data from the excel files

@@ -1,0 +1,67 @@
+---
+title: "Hans notebook"
+output: html_notebook
+date: "2023-04-12"
+author: Frank and Hans
+---
+
+## 將資料圖像化
+
+```{r}
+library(readxl)
+library(ggpubr)
+library(ggplot2)
+library(ggsignif)
+library(dplyr)
+library(ggeasy)
+library(ggplot2)
+library(rstatix)
+```
+
+#### 讀取檔案
+
+```{r}
+soxfile <- read_excel("I:/B.工作日常/共培养发表PPT/Thickness/Thickness.xlsx", sheet = 1)
+#Runxfile <- read_excel("I:/B.工作日常/共培养发表PPT/1.xlsx", sheet = 2)
+#soxsd <- read_excel("I:/B.工作日常/共培养发表PPT/1.xlsx", sheet = 3)
+#Runxsd <- read_excel("I:/B.工作日常/共培养发表PPT/1.xlsx", sheet = 4)
+```
+
+#### 手動加入顯著性
+
+```{r}
+C6 <- subset.data.frame(soxfile,Material=="C6")
+TC <- subset.data.frame(soxfile,Material=="TEC")
+```
+
+#### 常態檢定
+```{r}
+shapiro.test(C6$Thickness)
+```
+```{r}
+shapiro.test(TC$Thickness)
+```
+#### 比較檢定
+```{r}
+pstat <- compare_means(Thickness ~ Material,data = soxfile, method = "wilcox.test") %>%
+ mutate(y.position = c(1150))
+pstat
+```
+
+
+####  畫圖
+
+```{r}
+#my_xlab <- paste(c("C^"6"","TEC"))
+
+ggbarplot(soxfile,x="Material",y="Thickness", add = "mean_sd", ylab = "Thickness (μm)",label = FALSE, fill = "#00FFCC", lab.nb.digits = 2,lab.vjust=1.1,lab.pos = "in", lab.col = "white", lab.size = 5, xlab = "", width = 0.4, ylim = c(0,1250))+
+  theme(text = element_text(size=19),
+        plot.title = element_text(size=19),        ,
+        axis.title = element_text(size=19),
+        axis.text.x = element_text(size=19))+ 
+  scale_y_continuous(expand = c(0,0))+
+    scale_x_discrete(labels= c(expression(paste(C^"6")),"TEC"))+
+  stat_pvalue_manual(pstat, label = "p.signif",size = 10)+
+  labs(subtitle = get_test_label(wilcox_test(`Thickness` ~ Material,data = soxfile), detailed = T))
+```
+

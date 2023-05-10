@@ -1,0 +1,96 @@
+---
+title: "Matrix Analysis"
+author: "Frank"
+output: html_notebook
+Date: "2023-03-21"
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r read the CSV file}
+math <- read.csv("C:/Users/Mechanobiology/Downloads/milk.csv")
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+```{r select the specific dataset}
+S8367 <- subset.data.frame(math,School==8367)
+S8367$SES
+as.matrix(S8367$SES)
+```
+
+## Calculation for covariance matrix
+
+```{r}
+Z <- matrix(1,1,14)
+ZT <- t(Z)
+ZX <- cbind(ZT,as.matrix(S8367$SES))
+ZY <- t(ZX)
+sigma <- cbind(c(4.8278,-0.1547),c(-0.1547,0.4127))
+error <- 36.8304*diag(14)
+ma <- ZX %*% sigma %*% ZY + error
+ma/sqrt(diag(ma)%*%t(diag(ma)))
+```
+
+## Homework 5
+
+#### Calculate the design matrix of random effect
+
+```{r}
+Z <- matrix(0,120,10)
+for (i in 1:10) {
+  Z[(12*i-11):(12*i),i] <- 1
+}
+Z
+```
+
+#### calculate the estimated coefficience of beta and gamma
+
+```{r}
+Y <- matrix(math$milk, ncol=1)
+G <- diag(7.8247,10)
+X <- matrix(1,120,1)
+R <- diag(6.6729,120)
+red <- solve(rbind(cbind(t(X) %*% solve(R) %*% X, t(X) %*% solve(R) %*% Z),cbind(t(Z) %*% solve(R) %*% X, (t(Z) %*% solve(R) %*% Z + solve(G)))))
+sqrt(diag(red))
+```
+
+```{r}
+red %*% rbind(t(X) %*% solve(R) %*% Y, t(Z) %*% solve(R) %*% Y)
+```
+
+```{r}
+library(knoter)
+knote('Collagen_Membrane_PPTx.Rmd',notebook='Tokyo Metropolitan University',section='Results')
+```
+```{r}
+press <- function(brthwtkg,age,gender){
+  print(0.2417+
+          0.9333*brthwtkg+
+          7.8064*age+
+          0.5769*gender-
+          1.7084*age*age)
+}
+
+first <- press(3.65,0.125941142,1)
+second <- press(3.65,1.073237538,1)
+third <- press(3.65,2.299794674,1)
+PRESS <- (5.190000057	-first)^2+(12.02000046-second)^2+(17.20000076-third)^2
+PRESS
+```
+```{r}
+qf(0.5,5,193)
+```
+```{r}
+exp(-0.1472)
+```
+
+```{r}
+qchisq(0.95,228)
+```
+

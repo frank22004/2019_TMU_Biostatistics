@@ -1,27 +1,15 @@
 ---
-title: "Collagen_Membrane_PPTx"
+title: "Stiffness Gradient Collagen Membrane"
 author: "Frank"
-date: "2022-09-27"
-output: powerpoint_presentation
+date: "2023-05-02"
+output: html_notebook
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
 ```
 
-## R Markdown
-
-This is an R Markdown presentation. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document.
-
-## Slide with Bullets
-
--   Bullet 1
--   Bullet 2
--   Bullet 3
-
-## Slide with R Output
+## Loading `r version[['version.string']]` and following packages, Set up the connection:
 
 ```{r cars, echo = TRUE}
 library(RODBC)
@@ -33,99 +21,316 @@ library(dplyr)
 library(ggeasy)
 library(ggplot2)
 library(rstatix)
+library(stringr)
+library(fitdistrplus)
+library(knitr)
+library(multcomp)
+library(xlsx)
 ```
 
-## Set up driver info and database path
+1.  Set up driver info and database path
 
 ```{r access_path}
 DRIVERINFO <- "Driver={Microsoft Access Driver (*.mdb, *.accdb)};"
-MDBPATH <- "E:/OneDrive/文件/TMU-DESKTOP-SF2LD60.accdb"
+MDBPATH <- "E:/OneDrive/文件/TMU-DESKTOP-SF2LD60-Surface-Go-Surface-Go.accdb"
 PATH <- paste0(DRIVERINFO, "DBQ=", MDBPATH)
 ```
 
-## Establish connection
+2.  Establish connection
 
 ```{r connection}
 channel <- odbcDriverConnect(PATH)
 ```
 
-## Load data into R dataframe
+3.  Load data into R dataframe
 
 ```{r Load}
-df <- sqlQuery(channel,"SELECT * FROM CollagenMembrane;", stringsAsFactors = FALSE)
+df <- sqlQuery(channel,"SELECT * FROM CollagenMembrane, AFM WHERE CollagenMembrane.Cantilever=AFM.No;", stringsAsFactors = FALSE)
+df_dish <- sqlQuery(channel, "SELECT * FROM DishDepth;", stringsAsFactors = FALSE)
 ```
 
-## Table on the Data
+4.  Calculate the thickness
+
+```{r Experiment Sample, include=FALSE}
+df_data <- subset.data.frame(df, `Experiment Sample` == 85)
+
+df_data$`Thickness` <- df_dish[which(df_dish$Date=="2023-05-8"),]$'Dish Depth (μm)' - df_data$`AFMfathomDepth`
+#substrate the thickness of a cover slide
+df_data
+#colnames(df_data)[which(names(df_data)=="2MiddleLow")]<-"Middle"
+#colnames(df_data)[which(names(df_data)=="3MiddleHigh")]<-"Middle"
+#df_data$Area[which(df_data$Area=="2MiddleLow")] <- "Middle"
+#df_data$Area[which(df_data$Area=="3MiddleHigh")] <- "Middle"
+#df_data$Area[which(df_data$Area=="1Lowest")] <- "Low"
+#df_data$Area[which(df_data$Area=="4Highest")] <- "High"
+#df_data$Area <- factor(df_data$Area, levels = c("Low","Middle","High"))
+df[df$`Experiment Sample`==85,]$Thickness <- df_dish[which(df_dish$Date=="2023-05-8"),]$'Dish Depth (μm)' - df_data$`AFMfathomDepth`
+```
+
+5.  Table on the Data of Youngs Modulus
 
 ```{r Table}
-df_data <- subset.data.frame(df,Date=="2022-11-13" | Date=="2022-10-25" | Date=="2022-10-20")
+#df_data <- subset.data.frame(df, Area != "" & Area != "1Lowest"& Area != "2MiddleLow"& Area != "3MiddleHigh"& Area != "4Highest")
+df_data$Area <- factor(df_data$Area, levels = c("Low","Middle","High"))
+
 SynthesisMatrix <- df_data %>%
-  group_by(`Area`) %>%
+  group_by(Area) %>%
   summarise(
-    count = n(),
-    mean = mean(`Youngs Modulus (kPa)`, na.rm = TRUE),
-    sd = sd(`Youngs Modulus (kPa)`, na.rm = TRUE),
-    median = median(`Youngs Modulus (kPa)`, na.rm = TRUE),
-    IQR = IQR(`Youngs Modulus (kPa)`, na.rm = TRUE),
-    se = sd(`Youngs Modulus (kPa)`, na.rm = TRUE)/sqrt(n())
+    count = sum(!is.na(`YoungsModulus`)),
+    mean = mean(`YoungsModulus`, na.rm = TRUE),
+    sd = sd(`YoungsModulus`, na.rm = TRUE),
+    median = median(`YoungsModulus`, na.rm = TRUE),
+    IQR = IQR(`YoungsModulus`, na.rm = TRUE),
+    se = sd(`YoungsModulus`, na.rm = TRUE)/sqrt(count)
   )
-SynthesisMatrix$Area <- factor(SynthesisMatrix$Area, levels = c("Lowest","Middle","Highest"))
 SynthesisMatrix
 ```
 
-## Divide into the subgroups
+6.  Table on the Data of Thickness
+
+```{r}
+thickMatrix <- df_data %>%
+  group_by(Area) %>%
+  summarise(
+    count = sum(!is.na(Thickness)),
+    mean = mean(Thickness, na.rm = TRUE),
+    sd = sd(Thickness, na.rm=TRUE),
+    median = median(Thickness, na.rm=TRUE),
+    IQR = IQR(Thickness, na.rm = TRUE),
+    se = sd/sqrt(count)
+  )
+thickMatrix
+```
+
+## Divide into the subgroups and Check the normality
 
 ```{r divided}
-low <- subset.data.frame(df_data, Area =="Lowest")
-Mid <- subset.data.frame(df_data, Area =="Middle")
-High <- subset.data.frame(df_data, Area =="Highest")
+#low <- subset.data.frame(df_data, Area =="Low")
+#Mid <- subset.data.frame(df_data, `Experiment Sample` == 80& Status=="Uncompressed")
+High <- subset.data.frame(df_data, Area =="High")
+Low <- subset.data.frame(df_data, Area =="Low")
+MidH <- subset.data.frame(df_data, Area =="Middle")
 ```
 
-## Check the normality
+#### 1. Low
+
+The Shapiro test indicates that the data is `r if(normal$p.value < 0.05){"NON-normal distribution."}else{"normal distribution."}`(p-value = `r {round(normal$p.value,digits=3)}`). Here are `r length(out_ind)` outlines - `r out`.
 
 ```{r normal}
-normalTest <- shapiro.test(low$`Youngs Modulus (kPa)`)
-simple.eda(low$`Youngs Modulus (kPa)`)
-normalTest
+normal <- shapiro.test(Low$`YoungsModulus`)
+normal
+simple.eda(Low$`YoungsModulus`)
+out <- boxplot.stats(Low$`YoungsModulus`)$out
+out_ind <- which(Low$`YoungsModulus` %in% c(out))
+Low[out_ind,]
 ```
-```{r}
-normalTest <- shapiro.test(Mid$`Youngs Modulus (kPa)`)
-simple.eda(Mid$`Youngs Modulus (kPa)`)
-normalTest
-```
-```{r}
-normalTest <- shapiro.test(High$`Youngs Modulus (kPa)`)
-simple.eda(High$`Youngs Modulus (kPa)`)
-normalTest
-```
-## Comparison
+
+#### 2. Middle
+
+The Shapiro test indicates that the data is `r if(normalMid$p.value < 0.05){"NON-normal distribution."}else{"normal distribution."}`(p-value = `r {round(normalMid$p.value,digits=3)}`). Here are `r length(out_M_ind)` outlines - `r out_M`.
 
 ```{r}
-df_data <- rename(df_data,c("Youngs"="Youngs Modulus (kPa)"))
-pstat <- compare_means(`Youngs` ~ Area,data = df_data, method = "kruskal.test")
+normalMid <- shapiro.test(MidH$`YoungsModulus`)
+normalMid
+simple.eda(MidH$`YoungsModulus`)
+out_M <- boxplot.stats(MidH$`YoungsModulus`)$out
+out_M_ind <- which(MidH$`YoungsModulus` %in% c(out_M))
+MidH[out_M_ind,]
+```
+
+#### 3. High
+
+The Shapiro test indicates that the data is `r if(normalTest$p.value < 0.05){"NON-normal distribution."}else{"normal distribution."}`(p-value = `r {round(normalTest$p.value,digits=3)}`). Here are `r length(out_H_ind)` outlines - `r out_H`.
+
+```{r}
+normalTest <- shapiro.test(High$`YoungsModulus`)
+normalTest
+simple.eda(High$`YoungsModulus`)
+out_H <- boxplot.stats(High$`YoungsModulus`)$out
+out_H_ind <- which(High$`YoungsModulus` %in% c(out_H))
+High[out_H_ind,]
+```
+
+## Stiffness
+
+#### 1. Comparison
+
+```{r}
+#colnames(df_data)[which(names(df_data)=="Experiment Sample")]<-"Sample"
+pstat <- compare_means(`YoungsModulus` ~ Area,data = df_data, method = "kruskal.test")
 pstat
+#pstat<- aov(YoungsModulus ~ factor(Sample)*factor(Status), data=df_data)
+#summary(pstat)
 ```
 
-## Run post-hoc
+#### 2. post-hoc
 
 ```{r}
 dun <- df_data %>%
-  dunn_test(Youngs ~ Area, p.adjust.method="bonferroni") %>%
-  add_xy_position(x="Area", fun = "mean_sd", dodge = 0.8)
+  dunn_test(YoungsModulus ~ Area, p.adjust.method="bonferroni") %>%
+  add_xy_position(x="Area", fun = "mean_se", dodge = 0.8)
 dun
 ```
 
+```{r}
+#dun <- df_data %>%
+#  tukey_hsd(YoungsModulus ~ Area) %>%
+#  add_xy_position(x="Area", fun = "mean_sd")
+#dun
+#tukey_hsd(pstat)
+```
 
-## Plot
+#### 3. Boxplot
 
 ```{r}
-ggbarplot(SynthesisMatrix, x="Area", y="mean", ylab = "Youngs Modulus (kPa)", palette = "jco", label = TRUE)+ 
-  geom_bar(stat="identity", position=position_dodge())+
-  geom_errorbar(aes(ymin=mean-se, ymax=mean+se), width=.2, position=position_dodge(.9))+
-  stat_pvalue_manual(dun, hide.ns = TRUE)+
-  ggtitle("The stiffness of the compressed wedged collagen")+
+# prepare a special xlab with the number of obs for each group
+my_xlab <- paste(SynthesisMatrix$Area,"\n(N=",SynthesisMatrix$count,")",sep="")
+par(pin=c(8,20))
+#plot
+ggbarplot(df_data,x="Area",y="YoungsModulus",add = "mean_se", ylab = "Youngs Modulus (kPa)",label = TRUE, fill = "black", lab.nb.digits = 2,
+          #          lab.vjust=1.1,
+          lab.pos = "out", lab.col = "black", lab.size = 5, error.plot = "upper_errorbar", title = "The stiffness of 20% HAP corn-valley collagen \n  (1st trial) in 4cc stretch chamber\n centrifuged at 3430 rpm(1300 g) for 20min",position = position_dodge(0.7),ylim=c(0,135))+
+  easy_center_title()+
+  theme(text = element_text(size=20),
+        plot.title = element_text(size=20))+ 
+  scale_y_continuous(expand = c(0,0))+
+    scale_x_discrete(labels=my_xlab, limits=SynthesisMatrix$Area)+
+    stat_pvalue_manual(dun,hide.ns = TRUE, size = 7)+
+  labs(subtitle = get_test_label(kruskal_test(YoungsModulus ~ Area,data = df_data), detailed = T))
+```
+
+#### 4. Dark boxplot
+
+```{r}
+ggbarplot(df_data,x="Area",y="YoungsModulus",add = "mean_se", ylab = "Youngs Modulus (kPa)",label = TRUE, fill = "blue", lab.nb.digits = 2,
+#          lab.vjust=1.1,
+          lab.pos = "out", lab.col = "white", lab.size = 6, size = 2, error.plot = "upper_errorbar", color = "white", add.params = list(size = 2),position = position_dodge(0.7),ylim=c(0,135))+
+  easy_center_title()+
+  scale_y_continuous(expand = c(0,0))+
+  theme(text = element_text(size=20),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = 'black'),
+        plot.background=element_rect(fill = "black",colour = "black"),
+        axis.line = element_line(colour = "white", size = 1),
+        axis.title = element_text(colour = "white"),
+        axis.text = element_text(color = "white"),
+        axis.ticks = element_line(colour ="white", size = 2),
+        plot.subtitle = element_text(colour = "white"),
+        legend.background = element_rect(fill = 'black'),
+        legend.text = element_text(colour = 'white'))+
+    scale_x_discrete(labels=my_xlab, limits=SynthesisMatrix$Area)+
+    stat_pvalue_manual(dun,hide.ns = TRUE, size = 10, color = "white")+
+  labs(subtitle = get_test_label(kruskal_test(`YoungsModulus` ~ Area,data = df_data), detailed = T))
+#label = "p = {scales::pvalue(p.adj)}",
+```
+
+## Thickness
+
+#### 1. Normality
+
+```{r}
+normalTest <- shapiro.test(Low$`Thickness`)
+simple.eda(Low$`Thickness`)
+normalTest
+```
+
+```{r}
+normalTest <- shapiro.test(MidH$`Thickness`)
+simple.eda(MidH$`Thickness`)
+normalTest
+```
+
+```{r}
+normalTest <- shapiro.test(High$`Thickness`)
+simple.eda(High$`Thickness`)
+normalTest
+```
+
+#### 2. thickness comparison
+
+```{r}
+pstat <- compare_means(`Thickness` ~ Area,data = df_data, method = "kruskal.test")
+#pstat <- aov(`Thickness`~ factor(Sample)*factor(Status), data=df_data)
+pstat
+```
+
+#### 3. Post-hoc for thickness comparison
+
+```{r}
+#thi <- df_data %>%
+#  tukey_hsd(Thickness ~ Area)  %>%
+#  add_xy_position(x="Area", fun = "mean_se", dodge = 0.6,step.increase = 0.5) 
+#thi
+thi <- df_data %>%
+  dunn_test(Thickness ~ Area, p.adjust.method="bonferroni") %>%
+  add_xy_position(x="Area", fun = "mean_se", dodge = 0.8,  step.increase = 0.25)
+thi
+#tukey_hsd(pstat)
+```
+
+#### 4. Boxplot
+
+```{r}
+# prepare a special xlab with the number of obs for each group
+#my_xlab <- paste(str_sub(SynthesisMatrix$Area,2,-1),"\n(N=",SynthesisMatrix$thickCount,")",sep="")
+my_xlab <- paste(thickMatrix$Area,"\n(N=",thickMatrix$count,")",sep="")
+#plot
+ggbarplot(df_data,x="Area",y="Thickness",add = "mean_se", ylab = "Thicknesss (μm)",label = TRUE, fill = "black", lab.nb.digits = 2,lab.pos = "in", lab.col = "white", lab.size = 5 , error.plot = "upper_errorbar", title = "The Thickness of 20% HAP corn-valley collagen\n (1st trial) in 4cc stretch chamber\n centrifuged at 3430 rpm(1300 g) for 20min",position = position_dodge(0.7), ylim=c(0,1100))+
+  easy_center_title()+
+  theme(text = element_text(size=17))+ 
+  scale_y_continuous(expand = c(0,0))+
+    scale_x_discrete(labels=my_xlab, limits=thickMatrix$Area)+
+    stat_pvalue_manual(thi,hide.ns = TRUE, size = 7)+
+  labs(subtitle = get_test_label(kruskal_test(`Thickness` ~ Area,data = df_data), detailed = T))
+```
+
+#### 5. Dark boxplot
+
+```{r}
+ggbarplot(df_data,x="Area",y="Thickness",add = "mean_se", ylab = "Thickness (μm)",label = TRUE, fill = "red", lab.nb.digits = 2,lab.pos = "in", lab.col = "white", lab.size = 7, size=2, error.plot = "upper_errorbar", color = "white", add.params = list(size = 2),position = position_dodge(0.7), ylim=c(0,1100))+
   easy_center_title()+ 
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),axis.line = element_line(size = 0.9), axis.ticks = element_line(size = 0.9))
+  scale_y_continuous(expand = c(0,0))+
+  theme(text = element_text(size=19),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = 'black'),
+        plot.background=element_rect(fill = "black",colour = "black"),
+        axis.line = element_line(colour = "white", size = 1),
+        axis.title = element_text(colour = "white"),
+        axis.text = element_text(color = "white"),
+        axis.ticks = element_line(colour ="white", size = 2),
+        plot.subtitle = element_text(colour = "white"),
+        legend.background = element_rect(fill = 'black'),
+        legend.text = element_text(colour = 'white') )+
+    scale_x_discrete(labels=my_xlab, limits=thickMatrix$Area)+
+    stat_pvalue_manual(thi,hide.ns = TRUE, size = 10, color = "white")+
+  labs(subtitle = get_test_label(kruskal_test(`Thickness` ~ Area,data = df_data), detailed = T))
+```
+
+## Youngs Modulus vs. X axis
+
+```{r}
+simple.lm(df_data$Xaxis,df_data$YoungsModulus)
+summary(lm(YoungsModulus ~ Xaxis, data = df_data))
+```
+
+## Thickness vs. X axis
+
+```{r}
+simple.lm(df_data$Xaxis,df_data$Thickness)
+summary(lm(Thickness ~ Xaxis, data = df_data))
+```
+
+## Export the dataset to excel
+
+```{r}
+write.xlsx(df_data,file = "stiffnessGradient.xlsx",sheetName = "20221218Col30degree")
+```
+
+## Update the thickness
+```{r}
+sqlUpdate(channel,df[,1:15],tablename = "CollagenMembrane", index = "No")
 ```
 
 
