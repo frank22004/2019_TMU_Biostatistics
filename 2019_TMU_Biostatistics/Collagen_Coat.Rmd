@@ -1,0 +1,301 @@
+---
+title: "Collagen Coating"
+output: html_notebook
+author: "Frank"
+date: "`r Sys.Date()`"
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## Loading `r version[['version.string']]` and following packages, Set up the connection:
+```{r}
+library(RODBC)
+library(UsingR)
+library(ggpubr)
+library(ggplot2)
+library(ggsignif)
+library(dplyr)
+library(ggeasy)
+library(ggplot2)
+library(rstatix)
+library(stringr)
+library(fitdistrplus)
+library(knitr)
+library(multcomp)
+library(xlsx)
+library(grid)
+library(ggbreak)
+library(plotrix)
+library(ggpattern)
+library(scales)
+```
+
+1. Set up driver info and database path
+
+```{r access_path}
+DRIVERINFO <- "Driver={Microsoft Access Driver (*.mdb, *.accdb)};"
+MDBPATH <- "E:/OneDrive/文件/TMU-DESKTOP-SF2LD60-Surface-Go-Surface-Go.accdb"
+PATH <- paste0(DRIVERINFO, "DBQ=", MDBPATH)
+```
+
+2. Establish connection
+
+```{r connection}
+channel <- odbcDriverConnect(PATH)
+```
+
+3. Load data into R dataframe
+```{r}
+df_col <- sqlQuery(channel,"SELECT * FROM Sample, SEM WHERE GroupName=ExperimentSample;", stringsAsFactors = FALSE)
+df_sample <- sqlQuery(channel,"SELECT * FROM Sample, Collagen_Membrane_Preparation WHERE Sample.Scaffolds=Collagen_Membrane_Preparation.識別碼;")
+df_data <- merge(df_col,df_sample,by.x="GroupName",by.y = "GroupName",all.x = "TRUE")
+```
+
+4. Table on the Data
+```{r}
+df_data <- df_data[df_data$TypeI_collagen_μl != 50,]
+df_data$Status.y <- factor(df_data$Status.y, levels = c("UncompressedWithCell","CompressedWithCell","20%Coat","80%Coat"))
+df_data$TypeI_collagen_μl <- factor(df_data$TypeI_collagen_μl, levels = c("6400","2880","20","80"))
+
+SynthesisMatrix <- df_data %>%
+  group_by(`TypeI_collagen_μl`,`Status.y`,`Ingredient`) %>%
+  summarise(
+    count = sum(!is.na(`AreaFriction`)),
+    mean = mean(`AreaFriction`, na.rm = TRUE),
+    sd = sd(`AreaFriction`, na.rm = TRUE),
+    median = median(`AreaFriction`, na.rm = TRUE),
+    IQR = IQR(`AreaFriction`, na.rm = TRUE),
+    se = sd(`AreaFriction`, na.rm = TRUE)/sqrt(count)
+  )
+
+SynthesisMatrix
+```
+
+## Divide into the subgroups and Check the normality
+```{r divide}
+High <- subset.data.frame(df_data, `TypeI_collagen_μl` ==80)
+Low <- subset.data.frame(df_data, `TypeI_collagen_μl` ==20)
+Mid <- subset.data.frame(df_data, `TypeI_collagen_μl` ==50)
+```
+
+#### 1. Low
+
+The Shapiro test indicates that the data is `r if(normal$p.value < 0.05){"NON-normal distribution."}else{"normal distribution."}`(p-value = `r {round(normal$p.value,digits=3)}`). Here are `r length(out_ind)` outlines - `r out`.
+
+```{r normal}
+normal <- shapiro.test(Low$`AreaFriction`)
+normal
+simple.eda(Low$`AreaFriction`)
+out <- boxplot.stats(Low$`AreaFriction`)$out
+out_ind <- which(Low$`AreaFriction` %in% c(out))
+Low[out_ind,]
+```
+#### 2. Middle
+
+The Shapiro test indicates that the data is `r if(normalMid$p.value < 0.05){"NON-normal distribution."}else{"normal distribution."}`(p-value = `r {round(normalMid$p.value,digits=3)}`). Here are `r length(out_M_ind)` outlines - `r out_M`.
+
+```{r}
+normalMid <- shapiro.test(Mid$`AreaFriction`)
+normalMid
+simple.eda(Mid$`AreaFriction`)
+out_M <- boxplot.stats(Mid$`AreaFriction`)$out
+out_M_ind <- which(Mid$`AreaFriction` %in% c(out_M))
+Mid[out_M_ind,]
+```
+
+#### 3. High
+
+The Shapiro test indicates that the data is `r if(normalTest$p.value < 0.05){"NON-normal distribution."}else{"normal distribution."}`(p-value = `r {round(normalTest$p.value,digits=3)}`). Here are `r length(out_H_ind)` outlines - `r out_H`.
+
+```{r}
+normalTest <- shapiro.test(High$`AreaFriction`)
+normalTest
+simple.eda(High$`AreaFriction`)
+out_H <- boxplot.stats(High$`AreaFriction`)$out
+out_H_ind <- which(High$`AreaFriction` %in% c(out_H))
+High[out_H_ind,]
+```
+## Porocity
+
+#### 1. Comparison
+
+```{r}  
+pstat<- aov(`AreaFriction` ~ factor(`TypeI_collagen_μl`)+Ingredient, data=df_data)
+summary(pstat)
+pstat
+```
+#### 2. post-hoc
+
+```{r}
+df_data$TypeI_collagen_μl <- as.factor(df_data$TypeI_collagen_μl)
+
+dun <- df_data %>%
+#  group_by(Ingredient) %>%
+  tukey_hsd(`AreaFriction` ~ `TypeI_collagen_μl`) %>%
+  add_xy_position(fun = "mean_se", dodge = 0.2)
+dun
+
+dun$dollarsign <- ifelse(dun$p.adj<=0.0001,"$$$$",
+                         ifelse(dun$p.adj<=0.001,"$$$",
+                                ifelse(dun$p.adj<=0.01,"$$",
+                                       ifelse(dun$p.adj<=0.05,"$","ns"))))
+
+dun$andsign <- ifelse(dun$p.adj<=0.0001,"&&&&",
+                         ifelse(dun$p.adj<=0.001,"&&&",
+                                ifelse(dun$p.adj<=0.01,"&&",
+                                       ifelse(dun$p.adj<=0.05,"&","ns"))))
+dun
+```
+
+#### 3. Boxplot
+```{r fig.width = 8,fig.height = 4}
+#Add the sample size
+#my_xlab <- paste(SynthesisMatrix$`TypeI_collagen_μl`,"% \n(N=",SynthesisMatrix$count,")",sep="")
+my_xlab <- c("Uncompressed","Compressed","20%Coat", "80%Coat")
+windowsFonts(A = windowsFont("Times New Roman")) 
+df_data$Ingredient <- factor(df_data$Ingredient,levels = c("CollagenInStretch_flat","ScrappingCoating"))
+
+ggboxplot(data = df_data, x="TypeI_collagen_μl",y="AreaFriction", title = "Density",size = 1, fill = "Ingredient")+
+    scale_x_discrete(labels=my_xlab)+
+  labs( y="Area Fraction", x="collagen concentration")+
+  stat_pvalue_manual(dun,hide.ns = TRUE, size = 10,tip.length = 0, bracket.size = 1
+#    y.position = c(0.8,0.7)
+    )+
+  scale_fill_discrete(name = "Process", label=c("Collagen-Coated Glass","Collagen Matrix"))+
+  theme_bw()+
+  border(size = 2)+
+  easy_center_title()+  
+  theme(axis.ticks.length=unit(0.2, "cm"),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+#        prism.ticks.length.y = unit(0.12, "cm"),
+        axis.text = element_text(size = 20, color = "black", face = "bold"),
+        axis.title = element_text(size = 20, face = "bold"),
+        legend.text = element_text(size=12, face = "bold"),
+        legend.title = element_text(size=16,face = "bold"),
+        plot.subtitle = element_text(size = 20, face = "bold",hjust = 0.5),
+        plot.title = element_blank(),
+        text = element_text(family ="A"),
+        legend.position = c(0.16,0.85),
+        axis.ticks = element_line(size = 2, colour = "black"),
+        axis.title.x = element_blank()
+        )+
+  ylim(c(0,1.3))
+#  labs(subtitle = get_test_label(anova_test(`AreaFriction` ~ factor(`TypeI_collagen_μl`),data = df_data), detailed = T))
+```
+### 3.5 barplot
+```{r}
+Coat <- ggbarplot(data = df_data, x="TypeI_collagen_μl",y="AreaFriction", title = "Density",size = 1, fill = "Ingredient", add = "mean_se", error.plot = "upper_errorbar", add.params = list(size=1))+
+  scale_y_continuous(expand = c(0,0.001),limits = c(0,0.75),labels = percent)+
+  scale_x_discrete(labels=my_xlab,guide = guide_axis(n.dodge = 2))+
+  labs(y="Area Fraction", x = "collagen concentration")+
+  stat_pvalue_manual(dun[1,],hide.ns = TRUE, size = 10, tip.length = 0, bracket.size = 1, step.increase = 0.01, remove.bracket = TRUE)+
+  stat_pvalue_manual(dun[6,],hide.ns = TRUE, size = 10, tip.length = 0, bracket.size = 1, step.increase = 0.01, remove.bracket = TRUE, y.position = 0.65788)+
+  stat_pvalue_manual(dun[2:3,],hide.ns = TRUE, size = 5, tip.length = 0, bracket.size = 1, step.increase = 0.01, remove.bracket = TRUE,label = "{dollarsign}", y.position = c(0.2,0.7))+
+  stat_pvalue_manual(dun[4,],hide.ns = TRUE, size = 5, tip.length = 0, bracket.size = 1, step.increase = 0.01, remove.bracket = TRUE,label = "{andsign}",y.position = 0.25)+
+  scale_fill_discrete(name = "Process", label=c("Collagen Construct","Collagen Film"))+
+  theme_bw()+
+  border(size = 2)+
+  easy_center_title()+  
+  theme(axis.ticks.length=unit(0.2, "cm"),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+#        prism.ticks.length.y = unit(0.12, "cm"),
+        axis.text.y = element_text(size = 18, color = "black", face = "bold"),
+        axis.text.x = element_text(size = 18, color = "black", face = "bold"),
+        axis.title = element_text(size = 18, face = "bold"),
+        legend.text = element_text(size=18, face = "bold"),
+        legend.title = element_text(size=18,face = "bold"),
+        plot.subtitle = element_text(size = 20, face = "bold",hjust = 0.5),
+        plot.title = element_blank(),
+        text = element_text(family ="A"),
+#        legend.position = c(0.18,0.85),
+        legend.position = "none",
+        axis.ticks = element_line(size = 1, colour = "black"),
+        axis.title.x = element_blank()
+        )
+
+Coat
+```
+
+
+### 4. Dark boxplot
+```{r}
+ggboxplot(data = df_data, x="TypeI_collagen_μl",y="AreaFriction", title = "Density",size = 1, color = "white", fill = "Ingredient")+
+    scale_x_discrete(labels=my_xlab)+
+  labs( y="Area Fraction", x="collagen concentration")+
+  stat_pvalue_manual(dun,hide.ns = TRUE, size = 10,tip.length = 0,   
+#    y.position = c(0.8,0.7), 
+    color = "white")+
+  theme_bw()+
+  border(color = "white", size = 2)+
+  easy_center_title()+  
+  theme(axis.ticks.length=unit(0.4, "cm"),
+#        axis.line = element_line(colour = "white",size = 1),
+        axis.ticks = element_line(colour ="white",size = 1),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+#        prism.ticks.length.y = unit(0.12, "cm"),
+        axis.text.y = element_text(size = 25, color = "white", face = "bold"),
+        axis.text.x = element_text(size = 18, color = "white", face = "bold"),
+        axis.title = element_text(colour = "white",size = 25, face = "bold"),
+        legend.text = element_text(colour = "white",size=25, face = "bold"),
+        legend.title = element_text(colour = "white",size=25,face = "bold"),
+        plot.subtitle = element_text(colour = "white",size = 20, face = "bold",hjust = 0.5),
+        plot.title = element_text(colour = "white",size=30, face = "bold"),
+        text = element_text(family ="A"),
+        legend.position = "none",
+        panel.background = element_rect(fill = 'black'),
+        plot.background=element_rect(fill = "black",colour = "black"),
+        legend.background = element_rect(fill = 'black')
+        )+
+  ylim(c(0,1))+
+  labs(subtitle = get_test_label(anova_test(`AreaFriction` ~ factor(`TypeI_collagen_μl`),data = df_data), detailed = T))
+```
+```{r fig.width = 10,fig.height = 15}
+ggbarplot(data = df_data, x="TypeI_collagen_μl",y="AreaFriction", title = "Fiber Density",size = 5, color = "white", fill = "Ingredient", add = "mean_se", error.plot = "upper_errorbar", add.params = list(size=3))+
+  scale_y_continuous(expand = c(0,0.001),limits = c(0,1.1),labels = percent)+
+  scale_x_discrete(labels=my_xlab,guide = guide_axis(n.dodge = 2))+
+  labs(y="Area Fraction", x = "collagen concentration")+  
+  stat_pvalue_manual(dun,hide.ns = TRUE, size = 18,tip.length = 0,   
+#    y.position = c(0.8,0.7), 
+    color = "white")+
+  scale_fill_discrete(name = "Process", label=c("Collagen Construct","Collagen Film"))+
+  theme_bw()+
+  border(size = 7,color = "white")+
+  easy_center_title()+  
+  theme(axis.ticks.length=unit(0.2, "cm"),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+#        prism.ticks.length.y = unit(0.12, "cm"),
+        axis.text.y = element_text(size = 40, color = "white", face = "bold"),
+        axis.text.x = element_text(size = 40, color = "white", face = "bold"),
+        axis.title = element_text(size = 50, face = "bold",color = "white"),
+        legend.text = element_text(size=28, face = "bold",color = "white"),
+        legend.title = element_text(size=28,face = "bold",color = "white"),
+        plot.subtitle = element_text(size = 20, face = "bold",hjust = 0.5,color = "white"),
+        plot.title = element_text(colour = "white",size=50, face = "bold"),
+        text = element_text(family ="A"),
+#        legend.position = c(0.18,0.85),
+        legend.position = "top",
+        axis.ticks = element_line(size = 5, colour = "white"),
+        axis.title.x = element_blank(),
+        panel.background = element_rect(fill = 'black'),
+        plot.background=element_rect(fill = "black",colour = "black"),
+        legend.background = element_rect(fill = 'black')
+        )+
+  labs(subtitle = get_test_label(anova_test(`AreaFriction` ~ factor(`TypeI_collagen_μl`),data = df_data), detailed = T),size=30)
+```
+
+
+## Close and remove channel
+
+```{r}
+close(channel)
+```

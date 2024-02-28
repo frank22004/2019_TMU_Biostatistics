@@ -1,7 +1,7 @@
 ---
 title: "Stiffness Gradient Collagen Membrane"
 author: "Frank"
-date: "2023-05-02"
+date: "`r Sys.Date()`"
 output: html_notebook
 ---
 
@@ -26,6 +26,11 @@ library(fitdistrplus)
 library(knitr)
 library(multcomp)
 library(xlsx)
+library(grid)
+library(ggbreak)
+library(plotrix)
+library(ggpattern)
+library(gee)
 ```
 
 1.  Set up driver info and database path
@@ -46,15 +51,37 @@ channel <- odbcDriverConnect(PATH)
 
 ```{r Load}
 df <- sqlQuery(channel,"SELECT * FROM CollagenMembrane, AFM WHERE CollagenMembrane.Cantilever=AFM.No;", stringsAsFactors = FALSE)
+df_sample <- sqlQuery(channel,"SELECT * FROM Sample, Collagen_Membrane_Preparation WHERE Sample.Scaffolds=Collagen_Membrane_Preparation.識別碼;")
 df_dish <- sqlQuery(channel, "SELECT * FROM DishDepth;", stringsAsFactors = FALSE)
+df_all <- merge(df,df_sample,by.x="Experiment Sample",by.y = "識別碼",all.x = "TRUE")
 ```
 
-4.  Calculate the thickness
+```{r}
+allStatus <- paste(df_all$Status.x,df_all$Status.y)
+df_all <- cbind(df_all,allStatus)
+```
 
-```{r Experiment Sample, include=FALSE}
-df_data <- subset.data.frame(df, `Experiment Sample` == 85)
+4.  Calculate the thickness: 
+    Experiment Sample = 138
 
-df_data$`Thickness` <- df_dish[which(df_dish$Date=="2023-05-8"),]$'Dish Depth (μm)' - df_data$`AFMfathomDepth`
+```{r Experiment Sample}
+#For compared the surroundings area of spheroid and distal area
+#df_data <- subset.data.frame(df_all[-c(1262),], `Ingredient` == "CollagenInStretch_flat" & !(`Status.y`=="AFM") & !(`Experiment Sample`== 100)& !(`Experiment Sample`== 99)& !(`Experiment Sample`== 98))
+
+#The general collagen stiffness without cell
+df_data <- subset.data.frame(df_all,(`Ingredient` == "CollagenInStretch_flat"  & `Status.y`=="Compressed"& `Centrifuge (rpm)`!=3000)|(`Ingredient` == "CollagenInStretch_flat"  & `Status.y`=="Uncompressed")
+                             |`Ingredient` =="5%HAPInStretch"
+#                              | `Experiment Sample`== 187  | `Experiment Sample`== 189
+                             )
+
+colnames(df_data)[which(names(df_data)=="Centrifuge (rpm)")]<-"Centrifuge.RPM"
+#|`Ingredient` =="5%HAPInStretch"
+#Distance related stiffness
+#df_data <- subset.data.frame(df_all,`Experiment Sample`=="144" | `Experiment Sample`== "128" | `Experiment Sample`=="127" | `Experiment Sample`== "126" | `Experiment Sample`== "125")
+#df_data <- subset.data.frame(df_all,`Experiment Sample`=="144")
+#df_data$`Thickness` <- df_dish[which(df_dish$Date=="2023-10-03"),]$'Dish Depth (μm)' - df_data$`AFMfathomDepth`
+#df_data$`Thickness` <- 7654.31 - df_data$`AFMfathomDepth`
+
 #substrate the thickness of a cover slide
 df_data
 #colnames(df_data)[which(names(df_data)=="2MiddleLow")]<-"Middle"
@@ -64,17 +91,30 @@ df_data
 #df_data$Area[which(df_data$Area=="1Lowest")] <- "Low"
 #df_data$Area[which(df_data$Area=="4Highest")] <- "High"
 #df_data$Area <- factor(df_data$Area, levels = c("Low","Middle","High"))
-df[df$`Experiment Sample`==85,]$Thickness <- df_dish[which(df_dish$Date=="2023-05-8"),]$'Dish Depth (μm)' - df_data$`AFMfathomDepth`
+#df[df$`Experiment Sample`==144,]$Thickness <- df_dish[which(df_dish$Date=="2023-10-03"),]$'Dish Depth (μm)' - df_data$`AFMfathomDepth`
+#df[df$`Experiment Sample`==144,]$Thickness <- 7554.31 - df_data$`AFMfathomDepth`
 ```
 
 5.  Table on the Data of Youngs Modulus
-
+Don't consider the group 100, 99, and 98 because I didn't measure under the peripheral or distal area of the spheroid
 ```{r Table}
 #df_data <- subset.data.frame(df, Area != "" & Area != "1Lowest"& Area != "2MiddleLow"& Area != "3MiddleHigh"& Area != "4Highest")
-df_data$Area <- factor(df_data$Area, levels = c("Low","Middle","High"))
+#df_data$Area <- factor(df_data$Yasix, levels = c("0","100","150"))
+#df_data$Status.y <- factor(df_data$Status.y,levels = c("Uncompressed","Compressed"))
+
+#For compared the surroundings area of spheroid and distal area
+#df_data$allStatus <- factor(df_data$allStatus, levels = c("Compressed Compressed", "Uncompressed Uncompressed",
+#                                                          "Peripheral CompressedWithCell", 
+#                                                          "Distal CompressedWithCell",
+#                                                          "Peripheral UncompressedWithCell",
+#                                                          "Distal UncompressedWithCell"))
+#df_data <- df_data[-19,]
+
+
 
 SynthesisMatrix <- df_data %>%
-  group_by(Area) %>%
+#  group_by(Status.y,Yasix) %>%
+  group_by(Status.y,Centrifuge.RPM,Ingredient) %>%
   summarise(
     count = sum(!is.na(`YoungsModulus`)),
     mean = mean(`YoungsModulus`, na.rm = TRUE),
@@ -90,7 +130,7 @@ SynthesisMatrix
 
 ```{r}
 thickMatrix <- df_data %>%
-  group_by(Area) %>%
+  group_by(Status.y,Yasix,TypeI_collagen_μl) %>%
   summarise(
     count = sum(!is.na(Thickness)),
     mean = mean(Thickness, na.rm = TRUE),
@@ -106,10 +146,11 @@ thickMatrix
 
 ```{r divided}
 #low <- subset.data.frame(df_data, Area =="Low")
-#Mid <- subset.data.frame(df_data, `Experiment Sample` == 80& Status=="Uncompressed")
-High <- subset.data.frame(df_data, Area =="High")
-Low <- subset.data.frame(df_data, Area =="Low")
-MidH <- subset.data.frame(df_data, Area =="Middle")
+#Mid <- subset.data.frame(df_data, Status.x=="Uncompressed")
+High <- subset.data.frame(df_data, Yasix ==150)
+Low <- subset.data.frame(df_data, Yasix ==100)
+MidL <- subset.data.frame(df_data, Yasix ==50)
+MidH <- subset.data.frame(df_data, Yasix ==0)
 ```
 
 #### 1. Low
@@ -155,59 +196,218 @@ High[out_H_ind,]
 
 #### 1. Comparison
 
-```{r}
-#colnames(df_data)[which(names(df_data)=="Experiment Sample")]<-"Sample"
-pstat <- compare_means(`YoungsModulus` ~ Area,data = df_data, method = "kruskal.test")
+```{r}  
+colnames(df_data)[which(names(df_data)=="Experiment Sample")]<-"Sample"
+pstat <- compare_means(`YoungsModulus` ~ Status.y,data = df_data, method = "wilcox.test")
+#pstat <- compare_means(`YoungsModulus` ~ Yasix*Status.y,data = df_data, method = "kruskal.test")
+#pstat <- compare_means(`YoungsModulus` ~ Sample,data = df_data, method = "kruskal.test")
 pstat
-#pstat<- aov(YoungsModulus ~ factor(Sample)*factor(Status), data=df_data)
+#pstat<- aov(YoungsModulus ~ Yasix, data=df_data)
 #summary(pstat)
 ```
+#### 1.5 GEE
+```{r}
+geerun <- geeglm(YoungsModulus ~ Yasix+Status.y+Yasix*Status.y, id=Sample, data=df_data, family=gaussian , corstr = "ar1")
+summary(geerun)
+#anova(geerun)
+```
+
+```{r}
+
+```
+
+
 
 #### 2. post-hoc
 
 ```{r}
 dun <- df_data %>%
-  dunn_test(YoungsModulus ~ Area, p.adjust.method="bonferroni") %>%
-  add_xy_position(x="Area", fun = "mean_se", dodge = 0.8)
+#  group_by(Status.x) %>%
+dunn_test(YoungsModulus ~ Status.y, p.adjust.method="bonferroni") %>%
+#  dunn_test(YoungsModulus ~ Yasix, p.adjust.method="bonferroni") %>%
+#  dunn_test(YoungsModulus ~ Sample, p.adjust.method="bonferroni") %>%
+#  filter(p.adj.signif != "ns") %>%
+  add_xy_position(x="Status.y")
 dun
 ```
 
 ```{r}
-#dun <- df_data %>%
-#  tukey_hsd(YoungsModulus ~ Area) %>%
-#  add_xy_position(x="Area", fun = "mean_sd")
-#dun
+dun <- df_data %>%
+  tukey_hsd(YoungsModulus ~ Status.x*Status.y)
+#  add_xy_position(x="Status.y", fun = "mean_se")
+dun
 #tukey_hsd(pstat)
 ```
 
 #### 3. Boxplot
-
 ```{r}
+my_xlab <- paste(SynthesisMatrix$`Status.y`,"\n(N=",SynthesisMatrix$count,")",sep="")
+#my_xlab <- paste("(N=",thickMatrix$count,")",sep="")
+df_data$Status.y <- factor(df_data$Status.y, levels = c("Uncompressed","Compressed"))
+
+stiffbox_plan <- ggboxplot(df_data,x="Status.y",y="YoungsModulus", width = 0.9, title = " ", fill = "#EE6363", size = 1)+ 
+  scale_y_continuous(expand = c(0,0))+
+  scale_x_discrete(guide = guide_axis(n.dodge = 2))+
+#  scale_fill_manual(values = c("#00BFC4","#EE6363"))+
+  scale_fill_manual(values = c("white","darkgray"))+
+#  stat_pvalue_manual(dun,hide.ns = TRUE, size = 10,tip.length = 0, step.increase = 0.1)+
+#    scale_x_discrete(labels=my_xlab)+
+#  labs(subtitle = get_test_label(wilcox_test(YoungsModulus ~ Status.y,data = df_data), detailed = T))+
+  rotate_x_text(angle = 0)+
+  labs( y="Young's modulus (kPa)", fill="ECM ")+
+  easy_center_title()+
+  theme_bw()+
+  border(size = 2)+
+#  scale_fill_discrete(name="Condition")+
+#  scale_shape_discrete(name="Condition")+
+  theme(
+#        axis.line = element_line(size = 2),
+        axis.ticks = element_line(size = 1),
+        axis.ticks.length=unit(0.2, "cm"),
+#        prism.ticks.length.y = unit(0.12, "cm"),
+        axis.text.y = element_text(size = 18, color = "black", face = "bold"),
+        axis.text.x = element_text(size = 18, face = "bold", color = "black"),
+        axis.title = element_text(size = 18, face = "bold"),
+        axis.title.x = element_blank(),
+        legend.text = element_text(size=25, face = "bold"),
+        legend.title = element_text(size=25,face = "bold"),
+        plot.subtitle = element_text(size = 16, face = "bold",hjust = 0.5),
+        plot.title = element_blank(),
+        text = element_text(family ="A"),
+        legend.position = "none",
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank()
+        )+
+#  stat_summary(fun = mean, geom = "point", shape = 18, size = 3, color = "darkred",
+#               position = position_dodge(width = 0.8))+
+#  stat_summary(fun = mean, colour = "red", 
+#               position = position_dodge(width = 0.8),
+#               geom = "text", vjust = -0.7, 
+#               aes(label = round(..y.., digits = 1)), size=5)+
+#  coord_cartesian(clip = "off")+
+#  annotation_custom(textGrob("Collagen", gp=gpar(fontsize=12, fontface="bold")),xmin=1.5,xmax=1.5,ymin=-3.2,ymax=-3.2)+
+#  annotation_custom(textGrob("Spheroid \n Compressed", gp=gpar(fontsize=12, fontface="bold")),xmin=3.5,xmax=3.5,ymin=-3,ymax=-3)+
+#  annotation_custom(textGrob("Spheroid \n Uncompressed", gp=gpar(fontsize=12, fontface="bold")),xmin=5.5,xmax=5.5,ymin=-3,ymax=-3)+
+    stat_pvalue_manual(dun,hide.ns = TRUE, size = 10, tip.length = 0, bracket.size = 1)+
+#  labs(subtitle = get_test_label(kruskal_test(YoungsModulus ~ Status.y,data = df_data), detailed = T))+
+  ylim(c(0,40))
+#  rotate_x_text(angle = 30)
+
+stiffbox_plan
+```
+### Dark boxplot
+```{r fig.width = 4,fig.height = 8}
+my_xlab <- paste(SynthesisMatrix$`Status.y`,"\n(N=",SynthesisMatrix$count,")",sep="")
+#my_xlab <- paste("(N=",thickMatrix$count,")",sep="")
+
+ggboxplot(df_data,x="Status.y",y="YoungsModulus", width = 0.9, title = " ", fill = "Status.y", color = "white",size = 2)+ 
+  scale_y_continuous(expand = c(0,0))+
+  scale_fill_manual(values = c("#00BFC4","#EE6363"))+
+    scale_x_discrete(labels=my_xlab)+
+#  labs(subtitle = get_test_label(wilcox_test(YoungsModulus ~ Status.y,data = df_data), detailed = T))+
+  rotate_x_text(angle = 0)+
+  labs( y="Young's modulus (kPa)", fill="ECM ", title = "Stiffness")+
+  easy_center_title()+
+#  scale_fill_discrete(name="Condition")+
+#  scale_shape_discrete(name="Condition")+
+  theme(axis.line = element_line(colour = "white",size = 3),
+        axis.ticks = element_line(colour ="white",size = 3),
+        axis.ticks.length=unit(0.4, "cm"),
+#        prism.ticks.length.y = unit(0.12, "cm"),
+        axis.text.x = element_text(size = 15, color = "white", face = "bold"),
+        axis.text.y = element_text(size = 35, color = "white", face = "bold"),
+        axis.title = element_text(size = 35, face = "bold", hjust = 1,colour = "white"),
+        axis.title.x = element_blank(),
+        legend.text = element_text(colour = 'white',size=25, face = "bold"),
+        legend.title = element_text(size=25,face = "bold"),
+        plot.subtitle = element_text(colour = "white", size = 16, face = "bold",hjust = 0.5),
+        plot.title = element_text(colour = "white",size=40, face = "bold"),
+        text = element_text(family ="A"),
+        legend.position = "none",
+        panel.background = element_rect(fill = 'black'),
+        plot.background=element_rect(fill = "black",colour = "black"),
+        legend.background = element_rect(fill = 'black')
+        )+
+    stat_pvalue_manual(dun,hide.ns = TRUE, size = 15, color = "white")+
+#  labs(subtitle = get_test_label(kruskal_test(YoungsModulus ~ Status.y,data = df_data), detailed = T))+
+  ylim(c(0,40))
+```
+
+
+```{r fig.width = 5,fig.height = 6.2}
+my_xlab <- paste(SynthesisMatrix$`Yasix`,"\n(N=",SynthesisMatrix$count,")",sep="")
+#my_xlab <- paste("(N=",thickMatrix$count,")",sep="")
+
+stiffbox <- ggboxplot(df_data,x="Yasix",y="YoungsModulus", fill = "Status.y", shape= "Status.y", width = 0.9, title = "Stiffness")+ 
+  scale_y_continuous(expand = c(0,0))+
+#  stat_pvalue_manual(dun,hide.ns = TRUE, size = 10,tip.length = 0, step.increase = 0.1)+
+    scale_x_discrete(labels=my_xlab)+
+#  labs(subtitle = get_test_label(kruskal_test(YoungsModulus ~ allStatus,data = df_data), detailed = T))+
+  rotate_x_text(angle = 0)+
+  labs( y="Youngs Modulus (kPa)", x=" ")+
+  easy_center_title()+
+  scale_fill_discrete(name="Condition")+
+  scale_shape_discrete(name="Condition")+
+  theme(axis.line = element_line(size = 2),
+        axis.ticks = element_line(size = 2),
+        axis.ticks.length=unit(0.2, "cm"),
+#        prism.ticks.length.y = unit(0.12, "cm"),
+        axis.text = element_text(size = 12, color = "black", face = "bold"),
+        axis.title = element_text(size = 20, face = "bold"),
+        legend.text = element_text(size=19, face = "bold"),
+        legend.title = element_text(size=19,face = "bold"),
+        plot.subtitle = element_text(size = 16, face = "bold",hjust = 0.5),
+        plot.title = element_text(size=28, face = "bold"))+
+  stat_summary(fun = mean, geom = "point", shape = 18, size = 3, color = "darkred",
+               position = position_dodge(width = 0.8))+
+  stat_summary(fun = mean, colour = "red", 
+               position = position_dodge(width = 0.8),
+               geom = "text", vjust = -0.7, 
+               aes(label = round(..y.., digits = 1)), size=5)+
+  coord_cartesian(clip = "off")+
+  annotation_custom(textGrob("Collagen", gp=gpar(fontsize=12, fontface="bold")),xmin=1.5,xmax=1.5,ymin=-3.2,ymax=-3.2)+
+  annotation_custom(textGrob("Spheroid \n Compressed", gp=gpar(fontsize=12, fontface="bold")),xmin=3.5,xmax=3.5,ymin=-3,ymax=-3)+
+  annotation_custom(textGrob("Spheroid \n Uncompressed", gp=gpar(fontsize=12, fontface="bold")),xmin=5.5,xmax=5.5,ymin=-3,ymax=-3)+
+    stat_pvalue_manual(dun,hide.ns = TRUE, size = 7)+
+  labs(subtitle = get_test_label(kruskal_test(YoungsModulus ~ Yasix,data = df_data), detailed = T))
+
+stiffbox
+
+```
+
+
+
+```{r fig.width = 10,fig.height = 10}
 # prepare a special xlab with the number of obs for each group
-my_xlab <- paste(SynthesisMatrix$Area,"\n(N=",SynthesisMatrix$count,")",sep="")
+my_xlab <- paste(SynthesisMatrix$`allStatus`,"\n(N=",SynthesisMatrix$count,")",sep="")
 par(pin=c(8,20))
 #plot
-ggbarplot(df_data,x="Area",y="YoungsModulus",add = "mean_se", ylab = "Youngs Modulus (kPa)",label = TRUE, fill = "black", lab.nb.digits = 2,
-          #          lab.vjust=1.1,
-          lab.pos = "out", lab.col = "black", lab.size = 5, error.plot = "upper_errorbar", title = "The stiffness of 20% HAP corn-valley collagen \n  (1st trial) in 4cc stretch chamber\n centrifuged at 3430 rpm(1300 g) for 20min",position = position_dodge(0.7),ylim=c(0,135))+
+ggbarplot(df_data,x="Yasix",y="YoungsModulus",add = "mean_se", ylab = "Youngs Modulus (kPa)",label = TRUE, fill = "Status.x", lab.nb.digits = 2,
+                    lab.vjust=1.5,
+          lab.pos = "in", lab.col = "black", lab.size = 5, error.plot = "upper_errorbar", title = "The stiffness of the flat collagen \n 1 week spheroid",position = position_dodge(0.7),ylim=c(0,50),)+
   easy_center_title()+
-  theme(text = element_text(size=20),
+  theme(text = element_text(size=10),
         plot.title = element_text(size=20))+ 
   scale_y_continuous(expand = c(0,0))+
-    scale_x_discrete(labels=my_xlab, limits=SynthesisMatrix$Area)+
+    scale_x_discrete(labels=my_xlab, limits=SynthesisMatrix$allStatus)+
     stat_pvalue_manual(dun,hide.ns = TRUE, size = 7)+
-  labs(subtitle = get_test_label(kruskal_test(YoungsModulus ~ Area,data = df_data), detailed = T))
+  labs(subtitle = get_test_label(kruskal_test(YoungsModulus ~ allStatus,data = df_data), detailed = T))+
+  rotate_x_text(angle = 45)
 ```
 
 #### 4. Dark boxplot
 
-```{r}
-ggbarplot(df_data,x="Area",y="YoungsModulus",add = "mean_se", ylab = "Youngs Modulus (kPa)",label = TRUE, fill = "blue", lab.nb.digits = 2,
-#          lab.vjust=1.1,
-          lab.pos = "out", lab.col = "white", lab.size = 6, size = 2, error.plot = "upper_errorbar", color = "white", add.params = list(size = 2),position = position_dodge(0.7),ylim=c(0,135))+
+```{r fig.width = 10,fig.height = 10}
+ggbarplot(df_data,x="Centrifuge.RPM",y="YoungsModulus",add = "mean_se", ylab = "Youngs Modulus (kPa)",label = TRUE, 
+          fill = "Status.y", 
+          lab.nb.digits = 2,
+          lab.vjust=1.5,
+          lab.pos = "in", lab.col = "white", lab.size = 8, size = 2, error.plot = "upper_errorbar", color = "white", add.params = list(size = 2),position = position_dodge(0.7),
+#          ylim=c(0,50)
+          )+
   easy_center_title()+
   scale_y_continuous(expand = c(0,0))+
-  theme(text = element_text(size=20),
+  theme(text = element_text(size=28),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
         panel.background = element_rect(fill = 'black'),
@@ -219,11 +419,132 @@ ggbarplot(df_data,x="Area",y="YoungsModulus",add = "mean_se", ylab = "Youngs Mod
         plot.subtitle = element_text(colour = "white"),
         legend.background = element_rect(fill = 'black'),
         legend.text = element_text(colour = 'white'))+
-    scale_x_discrete(labels=my_xlab, limits=SynthesisMatrix$Area)+
+#    scale_x_discrete(labels=my_xlab, limits=SynthesisMatrix$`allStatus`)+
     stat_pvalue_manual(dun,hide.ns = TRUE, size = 10, color = "white")+
-  labs(subtitle = get_test_label(kruskal_test(`YoungsModulus` ~ Area,data = df_data), detailed = T))
+  labs(subtitle = get_test_label(kruskal_test(`YoungsModulus` ~ Sample,data = df_data), detailed = T))+
+  rotate_x_text(angle = 45)
 #label = "p = {scales::pvalue(p.adj)}",
 ```
+
+#### 5. line plot
+```{r }
+my_xlab <- paste(SynthesisMatrix$`Yasix`,"\n(N=",SynthesisMatrix$count,")",sep="")
+#my_xlab <- paste("(N=",thickMatrix$count,")",sep="")
+windowsFonts(A = windowsFont("Times New Roman")) 
+
+stiffbox <- ggplot(SynthesisMatrix,aes(x=Yasix, y=mean, color=Status.y, shape=Status.y))+
+#  geom_point(size=1.5)+
+  geom_point(mapping = aes(x = Yasix, y = mean), data = SynthesisMatrix, size=5)+
+  geom_line(mapping = aes(x = Yasix, y = mean,group=Status.y), data = SynthesisMatrix, size=1.5)+
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se), width=18)+
+  theme_classic()+
+  labs( y="Young's modulus (kPa)", x="Distance from the edge of A549 spheroid (mm)",
+        title = " "
+        )+
+  scale_color_discrete(name = "ECM ", labels=c("Compressed","Uncompressed"))+
+  scale_shape_discrete(name = "ECM ", labels=c("Compressed","Uncompressed"))+
+  easy_center_title()+
+#  annotation_custom(textGrob(paste("Cell is ", nlevels(factor(df_data$Cell))), gp=gpar(fontsize=12, fontface="bold")))+
+#  scale_y_continuous(guide = "prism_minor",minor_breaks = seq(200, 1800, 100),limits = c(200,1950),expand = c(0,0))+
+  scale_y_continuous(expand = c(0,0), breaks = seq(0,13,2))+
+  scale_x_continuous(breaks = seq(0,250,50))+
+  theme(axis.line = element_line(size = 2),
+        axis.ticks = element_line(size = 2),
+        axis.ticks.length=unit(0.4, "cm"),
+#        prism.ticks.length.y = unit(0.2, "cm"),
+        axis.text = element_text(size = 25, face = "bold", color = "black"),
+        axis.title.x = element_text(size = 25, face = "bold", hjust = 1),
+        axis.title.y = element_text(size=25, face = "bold", hjust = 1),
+#        text = element_text(family ="A"),
+        legend.position = "right",
+        legend.text = element_text(size=25, face = "bold"),
+        legend.title = element_text(size=25, face = "bold"),
+#        plot.subtitle = element_text(size = 16, face = "bold",hjust = 0.5,colour = "white"),
+        plot.title = element_text(size=30, face = "bold"),
+        text = element_text(family ="A")
+#        axis.title.x.bottom = element_blank()
+        )+
+  theme(text = element_text(size=12),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+#        panel.background = element_rect(fill = 'black'),
+#        plot.background=element_rect(fill = "black",colour = "black"),
+        axis.line = element_line(colour = "black", size = 2),
+#        axis.title = element_text(colour = "white"),
+#        axis.text = element_text(color = "white"),
+        axis.ticks = element_line(colour ="black", size = 2),
+#        plot.subtitle = element_text(colour = "white"),
+#        legend.background = element_rect(fill = 'black'),
+#        legend.text = element_text(colour = 'white'),
+#        legend.title = element_text(colour = "white"),
+#        plot.title = element_text(colour = "white")
+        legend.position = "none"
+  )
+#  labs(subtitle = get_test_label(kruskal_test(YoungsModulus ~ Yasix,data = df_data), detailed = T))
+#  stat_summary(fun = mean, colour = "red", 
+#               position = position_dodge(width = 0.8),
+#               geom = "text", vjust = -2.5, 
+#               aes(label = round(..y.., digits = 1)), size=5)
+stiffbox
+```
+
+#### 6. Dark Lineplot
+```{r fig.width = 6,fig.height = 5}
+my_xlab <- paste(SynthesisMatrix$`Yasix`,"\n(N=",SynthesisMatrix$count,")",sep="")
+#my_xlab <- paste("(N=",thickMatrix$count,")",sep="")
+windowsFonts(A = windowsFont("Times New Roman")) 
+
+ggplot(SynthesisMatrix,aes(x=Yasix, y=mean, color=Status.y, shape=Status.y))+
+#  geom_point(size=1.5)+
+  geom_point(mapping = aes(x = Yasix, y = mean), data = SynthesisMatrix, size=7)+
+  geom_line(mapping = aes(x = Yasix, y = mean,group=Status.y), data = SynthesisMatrix, size=2)+
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se), width=18,size=2)+
+  theme_classic()+
+  labs( y="Young's modulus (kPa)", x="Distance from the edge of A549 spheroid (mm)",
+#        title = " "
+        )+
+  scale_color_discrete(name = "ECM ", labels=c("Compressed","Uncompressed"))+
+  scale_shape_discrete(name = "ECM ", labels=c("Compressed","Uncompressed"))+
+  easy_center_title()+
+#  annotation_custom(textGrob(paste("Cell is ", nlevels(factor(df_data$Cell))), gp=gpar(fontsize=12, fontface="bold")))+
+#  scale_y_continuous(guide = "prism_minor",minor_breaks = seq(200, 1800, 100),limits = c(200,1950),expand = c(0,0))+
+  scale_y_continuous(expand = c(0,0), breaks = seq(0,13,2))+
+  scale_x_continuous(breaks = seq(0,250,50))+
+  theme(axis.line = element_line(size = 2),
+        axis.ticks = element_line(size = 2),
+        axis.ticks.length=unit(0.4, "cm"),
+#        prism.ticks.length.y = unit(0.2, "cm"),
+        axis.text = element_text(size = 25, face = "bold"),
+        axis.title.x = element_text(size = 20, face = "bold", hjust = 1),
+        axis.title.y = element_text(size=25, face = "bold", hjust = 1),
+#        text = element_text(family ="A"),
+        legend.position = "right",
+        legend.text = element_text(size=25, face = "bold"),
+        legend.title = element_text(size=25, face = "bold"),
+#        plot.subtitle = element_text(size = 16, face = "bold",hjust = 0.5,colour = "white"),
+        plot.title = element_text(size=30, face = "bold"),
+        text = element_text(family ="A")
+#        axis.title.x.bottom = element_blank()
+        )+
+  theme(text = element_text(size=12),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = 'black'),
+        plot.background=element_rect(fill = "black",colour = "black"),
+        axis.line = element_line(colour = "white", size = 2),
+        axis.title = element_text(colour = "white"),
+        axis.text = element_text(color = "white"),
+        axis.ticks = element_line(colour ="white", size = 2),
+        plot.subtitle = element_text(colour = "white"),
+        legend.background = element_rect(fill = 'black'),
+        legend.text = element_text(colour = 'white'),
+        legend.title = element_text(colour = "white"),
+        plot.title = element_text(colour = "white"),
+        legend.position = "top"
+#        legend.position = "none"
+  )
+```
+
 
 ## Thickness
 
@@ -247,10 +568,11 @@ simple.eda(High$`Thickness`)
 normalTest
 ```
 
-#### 2. thickness comparison
+ #### 2. thickness comparison
 
 ```{r}
-pstat <- compare_means(`Thickness` ~ Area,data = df_data, method = "kruskal.test")
+#pstat <- compare_means(`Thickness` ~ Yasix,data = df_data, method = "kruskal.test")
+pstat <- compare_means(`Thickness` ~ Status.y,data = df_data, method = "kruskal.test")
 #pstat <- aov(`Thickness`~ factor(Sample)*factor(Status), data=df_data)
 pstat
 ```
@@ -259,53 +581,256 @@ pstat
 
 ```{r}
 #thi <- df_data %>%
-#  tukey_hsd(Thickness ~ Area)  %>%
-#  add_xy_position(x="Area", fun = "mean_se", dodge = 0.6,step.increase = 0.5) 
+#  tukey_hsd(Thickness ~ Status.y)  %>%
+#  add_xy_position(x="Status.y", fun = "mean_se", dodge = 0., step.increase = 0.25) 
 #thi
 thi <- df_data %>%
-  dunn_test(Thickness ~ Area, p.adjust.method="bonferroni") %>%
-  add_xy_position(x="Area", fun = "mean_se", dodge = 0.8,  step.increase = 0.25)
+#  group_by(Status.y) %>%
+  dunn_test(Thickness ~ Status.y, p.adjust.method="holm") %>%
+  add_xy_position(x="Status.y", fun = "mean_se", dodge = 0.7, 
+#                  step.increase = 0.05
+                  )
 thi
 #tukey_hsd(pstat)
 ```
+#### 3.1 GEE
+```{r}
+geerunThic <- geeglm(Thickness ~ factor(Yasix)+Status.y, id=Sample, data=df_data, family=gaussian , corstr = "ar1")
+summary(geerunThic)
+```
+
+
 
 #### 4. Boxplot
+```{r}
+thickbox <- ggboxplot(df_data,x="Status.y",y="Thickness", title = "Thickness", width = 0.9, color = "white")+
+#  ylim(c(470,3775))+ 
+#  scale_y_continuous(expand = c(0,0))+
+  stat_pvalue_manual(thi,hide.ns = TRUE, size = 10)+
+#    scale_x_discrete(labels=my_xlab, limits=c(0,100,150,200))+
+#  labs(subtitle = get_test_label(kruskal_test(Thickness ~ allStatus,data = df_data), detailed = T))+
+#  rotate_x_text(angle = 30)+
+  labs( y="Thicknesss (μm)", x=" ")+
+  easy_center_title()+
+#  scale_fill_discrete(name="Condition")+
+#  scale_shape_discrete(name="Condition")+
+#  scale_y_break(c(620,3700),scales = 1)+
+  theme(axis.line = element_line(size = 2,colour = "white"),
+        axis.ticks = element_line(size = 2,colour ="white"),
+        axis.ticks.length=unit(0.4, "cm"),
+#        prism.ticks.length.y = unit(0.12, "cm"),
+        axis.text = element_text(size = 20, color = "white", face = "bold"),
+        axis.title = element_text(size = 20, face = "bold",colour = "white"),
+        legend.position = "none",
+#        legend.text = element_text(size=19, face = "bold"),
+#        legend.title = element_text(size=19,face = "bold"),
+        plot.subtitle = element_text(size = 16, face = "bold",hjust = 0.5,colour = "white"),
+        plot.title = element_text(size=28, face = "bold",colour = "white"),
+#        axis.text.y.right = element_blank(),
+#        axis.line.y.right = element_blank(),
+#        axis.ticks.y.right = element_blank(),
+        text = element_text(size=12),
+#        panel.grid.major = element_blank(),
+#        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = 'black'),
+        plot.background=element_rect(fill = "black", colour = "black"),
+#        axis.text = element_text(color = "white"),
+        legend.background = element_rect(fill = 'black'),
+        legend.text = element_text(colour = 'white'),
+        legend.title = element_text(colour = "white"),
+        rect = element_rect(fill="black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank())+
+  labs(subtitle = get_test_label(kruskal_test(`Thickness` ~ Status.y,data = df_data), detailed = T))
+#  stat_summary(fun = mean, geom = "point", shape = 18, size = 3, color = "darkred",
+#               position = position_dodge(width = 0.8))+
+#  stat_summary(fun = mean, colour = "red", 
+#               position = position_dodge(width = 0.8),
+#               geom = "text", vjust = -0.7, 
+#               aes(label = round(..y.., digits = 1)), size=5)
+
+thickbox
+```
+
+
+```{r,fig.asp=1}
+#my_xlab <- paste(thickMatrix$Yasix,"\n(N=",thickMatrix$count,")",sep="")
+#my_xlab <- paste("(N=",thickMatrix$count,")",sep="")
+
+thickbox <- ggboxplot(df_data,x="Status.y",y="Thickness", fill = "Ingredient", shape= "Ingredient", title = "Thickness", width = 0.9, color = "white")+
+#  ylim(c(470,3775))+ 
+#  scale_y_continuous(expand = c(0,0))+
+#  stat_pvalue_manual(thi,hide.ns = TRUE, size = 10)+
+#    scale_x_discrete(labels=my_xlab, limits=c(0,100,150,200))+
+#  labs(subtitle = get_test_label(kruskal_test(Thickness ~ allStatus,data = df_data), detailed = T))+
+#  rotate_x_text(angle = 30)+
+  labs( y="Thicknesss (μm)", x=" ")+
+  easy_center_title()+
+#  scale_fill_discrete(name="Condition")+
+#  scale_shape_discrete(name="Condition")+
+#  scale_y_break(c(620,3700),scales = 1)+
+  theme(axis.line = element_line(size = 2,colour = "white"),
+        axis.ticks = element_line(size = 2,colour ="white"),
+        axis.ticks.length=unit(0.4, "cm"),
+        prism.ticks.length.y = unit(0.12, "cm"),
+        axis.text = element_text(size = 20, color = "white", face = "bold"),
+        axis.title = element_text(size = 20, face = "bold",colour = "white"),
+        legend.position = "none",
+#        legend.text = element_text(size=19, face = "bold"),
+#        legend.title = element_text(size=19,face = "bold"),
+        plot.subtitle = element_text(size = 16, face = "bold",hjust = 0.5,colour = "white"),
+        plot.title = element_text(size=28, face = "bold",colour = "white"),
+#        axis.text.y.right = element_blank(),
+#        axis.line.y.right = element_blank(),
+#        axis.ticks.y.right = element_blank(),
+        text = element_text(size=12),
+#        panel.grid.major = element_blank(),
+#        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = 'black'),
+        plot.background=element_rect(fill = "black", colour = "black"),
+#        axis.text = element_text(color = "white"),
+        legend.background = element_rect(fill = 'black'),
+        legend.text = element_text(colour = 'white'),
+        legend.title = element_text(colour = "white"),
+        rect = element_rect(fill="black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank())+
+  labs(subtitle = get_test_label(kruskal_test(`Thickness` ~ Yasix,data = df_data), detailed = T))+
+  stat_summary(fun = mean, geom = "point", shape = 18, size = 3, color = "darkred",
+               position = position_dodge(width = 0.8))+
+  stat_summary(fun = mean, colour = "red", 
+               position = position_dodge(width = 0.8),
+               geom = "text", vjust = -0.7, 
+               aes(label = round(..y.., digits = 1)), size=5)
+#  stat_summary(fun = mean, geom = "point", shape = 18, size = 3, color = "darkred",
+#               position = position_dodge(width = 0.8))+
+#  stat_summary(fun = mean, colour = "red", 
+#               position = position_dodge(width = 0.8),
+#               geom = "text", vjust = -0.5, 
+#               aes(label = round(..y.., digits = 1)), size=5)+
+#  coord_cartesian(clip = "off")+
+#  annotation_custom(textGrob("Collagen", gp=gpar(fontsize=12, fontface="bold")),xmin=1.5,xmax=1.5,ymin=-90,ymax=-90)+
+#  annotation_custom(textGrob("Spheroid \n Compressed", gp=gpar(fontsize=12, fontface="bold")),xmin=3.5,xmax=3.5,ymin=250,ymax=250)+
+#  annotation_custom(textGrob("Spheroid \n Uncompressed", gp=gpar(fontsize=12, fontface="bold")),xmin=5.5,xmax=5.5,ymin=-70,ymax=-70)+
+#    stat_pvalue_manual(thi,hide.ns = TRUE, size = 7)
+#  labs(subtitle = get_test_label(kruskal_test(`Thickness` ~ Yasix,data = df_data), detailed = T))
+#  geom_hline(yintercept = 620,linetype="longdash", color="white")+
+#  geom_hline(yintercept = 3700, linetype="longdash", color="white")
+
+
+#truThickbox <- print(thickbox)+ 
+#  theme(plot.background = element_rect(fill = 'black', color = 'black'),
+#        panel.background = element_rect(fill = 'black', color = 'black'),
+#        panel.border = element_rect(color = 'black', linewidth = 6, fill = NA),
+#        axis.line = element_line(color = 'black', linewidth = 2))
+
+#truThickbox
+thickbox
+```
+
+### joined paper
 
 ```{r}
 # prepare a special xlab with the number of obs for each group
 #my_xlab <- paste(str_sub(SynthesisMatrix$Area,2,-1),"\n(N=",SynthesisMatrix$thickCount,")",sep="")
-my_xlab <- paste(thickMatrix$Area,"\n(N=",thickMatrix$count,")",sep="")
+my_xlab <- paste(thickMatrix$Status.y,"\n(N=",thickMatrix$count,")",sep="")
 #plot
-ggbarplot(df_data,x="Area",y="Thickness",add = "mean_se", ylab = "Thicknesss (μm)",label = TRUE, fill = "black", lab.nb.digits = 2,lab.pos = "in", lab.col = "white", lab.size = 5 , error.plot = "upper_errorbar", title = "The Thickness of 20% HAP corn-valley collagen\n (1st trial) in 4cc stretch chamber\n centrifuged at 3430 rpm(1300 g) for 20min",position = position_dodge(0.7), ylim=c(0,1100))+
-  easy_center_title()+
-  theme(text = element_text(size=17))+ 
-  scale_y_continuous(expand = c(0,0))+
-    scale_x_discrete(labels=my_xlab, limits=thickMatrix$Area)+
-    stat_pvalue_manual(thi,hide.ns = TRUE, size = 7)+
-  labs(subtitle = get_test_label(kruskal_test(`Thickness` ~ Area,data = df_data), detailed = T))
+windowsFonts(A = windowsFont("Times New Roman"))
+
+df_data$Status.y <- factor(df_data$Status.y, levels = c("20%Coat","80%Coat","Compressed","Uncompressed"))
+
+test <- ggbarplot(df_data,x= "Status.y" ,y="Thickness",add = "mean_se", ylab = "Thicknesss (μm)", fill = "Ingredient",label = FALSE, lab.nb.digits = 2, size = 1,add.params = list(size = 1),
+#          lab.vjust=1.5,
+#          position = position_dodge(0.7),  width = 30,
+#          lab.pos = "out", lab.col = "black", lab.size = 6 , 
+  error.plot = "upper_errorbar", title = "Thickness")+
+#  scale_fill_manual(values = c("white","darkgray"))+
+    easy_center_title()+
+    labs( y="Thicknesss (μm)", x=" ")+
+#    theme_bw()+
+#    border(size = 2)+
+#  theme(text = element_text(size=12))+ 
+#    scale_x_discrete(breaks="Yasix")+
+    stat_pvalue_manual(thi,hide.ns = TRUE, size = 6,tip.length = 0, bracket.size = 1, step.increase = 0.01)+
+#  labs(x=" ", subtitle = get_test_label(kruskal_test(`Thickness` ~ Status.y,data = df_data), detailed = T))+
+#  rotate_x_text(angle = 45)+
+  theme(text = element_text(family ="A"),
+        axis.line = element_line(size = 1.3),
+        axis.line.x.top = element_line(size=1),
+        axis.ticks = element_line(size = 1),
+        axis.ticks.length=unit(0.2, "cm"),
+#        prism.ticks.length.y = unit(0.12, "cm"),
+        axis.text.x = element_text(size = 12, color = "black", face = "bold"),
+        axis.text.y = element_text(size = 10, color = "black", face = "bold"),
+        axis.title = element_text(size = 14, color = "black", face = "bold"),
+        legend.text = element_text(size=19, face = "bold"),
+        legend.title = element_text(size=19,face = "bold"),
+        plot.subtitle = element_text(size = 20, face = "bold",hjust = 0.5),
+        plot.title = element_blank(),
+        axis.line.y.right = element_blank(),
+        axis.text.y.right = element_blank(),
+        axis.ticks.y.right = element_blank() ,
+        legend.position = "none",
+        axis.title.x = element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        plot.margin = unit(c(0,0,0,0),"cm"))+
+#    scale_x_discrete(labels=my_xlab)+
+    scale_y_continuous(expand = c(0,0), limits = c(0,8000), breaks = c(0,20))+
+    scale_y_break(c(350,3500),scales = 2.2,space = 0.3, ticklabels = c(3500,5000,6500),expand = FALSE)+
+    scale_y_break(c(20,330),scales = 1.1,space = 0.3, ticklabels = c(0,15,20,330,340,350),expand = FALSE)+
+  geom_hline(yintercept = 7980, size=1.5)+
+  geom_vline(xintercept = 4.588, size=1.3)
+
+test$labels$y.position <- NULL
+test
+#    border(size = 2)
 ```
 
 #### 5. Dark boxplot
-
-```{r}
-ggbarplot(df_data,x="Area",y="Thickness",add = "mean_se", ylab = "Thickness (μm)",label = TRUE, fill = "red", lab.nb.digits = 2,lab.pos = "in", lab.col = "white", lab.size = 7, size=2, error.plot = "upper_errorbar", color = "white", add.params = list(size = 2),position = position_dodge(0.7), ylim=c(0,1100))+
+```{r }
+thickbox <- ggbarplot(df_data,x="Yasix",y="Thickness",add = "mean_se", ylab = "Thickness (μm)", label = FALSE,
+#          fill = "black", 
+#          lab.nb.digits = 2,lab.pos = "in", lab.col = "white", error.plot = "errorbar", color = "white", 
+#          lab.size = 5, size=2, 
+          position = position_dodge(50), width = 40, 
+          title = "Thickness", fill = "Status.y")+
   easy_center_title()+ 
-  scale_y_continuous(expand = c(0,0))+
-  theme(text = element_text(size=19),
+  scale_y_continuous(expand = c(0,0), breaks = c(0,150,300, 450,600,3700,3725,3750))+
+  scale_y_break(c(600,3700), scales = 0.5, expand = FALSE, space = 0.5)+
+#  scale_x_continuous(breaks = seq(0,250,50))+
+  theme(text = element_text(size=10),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
-        panel.background = element_rect(fill = 'black'),
-        plot.background=element_rect(fill = "black",colour = "black"),
-        axis.line = element_line(colour = "white", size = 1),
-        axis.title = element_text(colour = "white"),
-        axis.text = element_text(color = "white"),
-        axis.ticks = element_line(colour ="white", size = 2),
-        plot.subtitle = element_text(colour = "white"),
-        legend.background = element_rect(fill = 'black'),
-        legend.text = element_text(colour = 'white') )+
-    scale_x_discrete(labels=my_xlab, limits=thickMatrix$Area)+
-    stat_pvalue_manual(thi,hide.ns = TRUE, size = 10, color = "white")+
-  labs(subtitle = get_test_label(kruskal_test(`Thickness` ~ Area,data = df_data), detailed = T))
+        axis.text = element_text(size = 25, face = "bold"),
+        axis.title = element_text(size = 25, face = "bold"),
+        legend.position = "none",
+        axis.line = element_line(size = 2),
+        axis.ticks = element_line(size = 2),
+        axis.ticks.length=unit(0.2, "cm"),
+        axis.line.y.right = element_blank(),
+        axis.text.y.right = element_blank(),
+        axis.ticks.y.right = element_blank(),
+        plot.title = element_text(size=25, face = "bold"),
+        axis.title.x.bottom = element_blank())+
+#        panel.background = element_rect(fill = 'black'),
+#        plot.background=element_rect(fill = "black",colour = "black"),
+#        axis.line = element_line(colour = "white", size = 1),
+#        axis.title = element_text(colour = "white"),
+#        axis.text = element_text(color = "white"),
+#        axis.ticks = element_line(colour ="white", size = 2),
+#        plot.subtitle = element_text(colour = "white"),
+ #       legend.background = element_rect(fill = 'black'),
+#        legend.text = element_text(colour = 'white') )+
+    scale_x_discrete(limits=thickMatrix$Yasix)+
+  geom_hline(yintercept=600, size=2, linetype="dashed")+
+  geom_hline(yintercept=3700, size=2, linetype="dashed")
+#    stat_pvalue_manual(thi,hide.ns = TRUE, size = 10, color = "white"
+#        )
+#  labs(subtitle = get_test_label(kruskal_test(`Thickness` ~ Yasix,data = df_data), detailed = T))+
+#  rotate_x_text(angle = 45)
+
+thickbox
 ```
 
 ## Youngs Modulus vs. X axis
@@ -339,3 +864,18 @@ sqlUpdate(channel,df[,1:15],tablename = "CollagenMembrane", index = "No")
 ```{r}
 close(channel)
 ```
+
+### Combined figure
+```{r fig.width = 8,fig.height = 4}
+windowsFonts(A = windowsFont("Times New Roman")) 
+figuretot <- ggarrange(print(stiffbox_plan),
+#  ggarrange(print(Coat), print(test)+theme(plot.margin = margin(0, -0.2, 0, 0.2, "cm")),
+#            ncol = 1, nrow = 2, labels = c("(B)","(C)"), hjust = 0, vjust = 0.5,font.label = list(size=15,family ="A"), common.legend = TRUE)
+                       print(Coat), ncol = 2, nrow = 1, widths = c(1,2), labels = c("(B)","(C)"),font.label = list(size=15,family ="A"), hjust = 0, vjust = 0.95, common.legend = TRUE)
+#annotate_figure(figuretot,bottom = text_grob("Distance from the edge of shperoid (mm)", size = 20,hjust = 1, x = 1, face = "bold"
+#                                             ,color = "white"
+#                                             ))
+#  bgcolor("black")
+figuretot
+```
+
