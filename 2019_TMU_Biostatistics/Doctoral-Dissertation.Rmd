@@ -1,0 +1,136 @@
+---
+title: "Doctoral Dissertation"
+author: "Frank"
+date: "`r Sys.Date()`"
+output: html_notebook
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+1. Loading and following packages, Set up the connection:
+
+```{r librarty, warning=FALSE, echo = FALSE}
+library(RODBC)
+library(UsingR)
+library(ggpubr)
+library(ggplot2)
+library(ggsignif)
+library(dplyr)
+library(ggeasy)
+library(ggplot2)
+library(rstatix)
+library(stringr)
+library(fitdistrplus)
+library(knitr)
+library(multcomp)
+library(xlsx)
+library(grid)
+library(ggbreak)
+library(stats)
+print(sessionInfo(),locale = FALSE)
+```
+
+2.  Set up `r DRIVERINFO`` and database path
+
+```{r access_path}
+DRIVERINFO <- "Driver={Microsoft Access Driver (*.mdb, *.accdb)};"
+MDBPATH <- "E:/OneDrive/文件/TMU-DESKTOP-SF2LD60-Surface-Go-Surface-Go.accdb"
+PATH <- paste0(DRIVERINFO, "DBQ=", MDBPATH)
+```
+
+3.  Establish connection
+
+```{r connection}
+channel <- odbcDriverConnect(PATH)
+```
+
+4.  Load data into R dataframe
+
+```{r Load}
+df <- sqlQuery(channel,"SELECT * FROM CollagenMembrane, AFM WHERE CollagenMembrane.Cantilever=AFM.No;", stringsAsFactors = FALSE)
+df_sample <- sqlQuery(channel,"SELECT * FROM Sample, Collagen_Membrane_Preparation WHERE Sample.Scaffolds=Collagen_Membrane_Preparation.識別碼;")
+df_dish <- sqlQuery(channel, "SELECT * FROM DishDepth;", stringsAsFactors = FALSE)
+df_all <- merge(df,df_sample,by.x="Experiment Sample",by.y = "識別碼",all.x = "TRUE")
+df_drug <- sqlQuery(channel, "SELECT * FROM Drug, Material WHERE Drug.Drug = Material.MaterialID;")
+df_all_withdrug <- merge(df_all, df_drug,by.x = "GroupName.y", by.y = "ExperimentSample", all.x = "TRUE")
+df_all_withdrug
+```
+
+## 
+
+```{r}
+#Distance related stiffness
+df_data <- subset.data.frame( df_all_withdrug, (`Experiment Sample`=="234"   | `Experiment Sample`== "125"|
+                                                  `Experiment Sample`== "126"| `Experiment Sample`== "138"|
+                                                  `Experiment Sample`== "144"| `Experiment Sample`== "127" | 
+                                                  `Experiment Sample`== "128" |  `Experiment Sample`== "109"| 
+                                                  `Experiment Sample`== "110" 
+#                                                  `Experiment Sample`== "225"| `Experiment Sample`== "235" |
+#                                                  `Experiment Sample`== "223" | `Experiment Sample`== "233"
+ #                                                 | `Experiment Sample`== "230" 
+                                                ) & 
+  !(is.na(df_all_withdrug$Yasix)) & 
+  df_all_withdrug$Yasix <= 200 &
+  !(is.na(df_all_withdrug$YoungsModulus)))
+#                             
+
+
+SynthesisMatrix <- df_data %>%
+  group_by(MaterialName,Status.y,Yasix) %>%
+#  group_by(Status.y,Centrifuge.RPM,Ingredient) %>%
+#  group_by(Status.x) %>%
+#   group_by(Status,culture) %>%
+#  group_by(Status.y, Yasix) %>%
+  summarise(
+    count = sum(!is.na(`YoungsModulus`)),
+    N = n_distinct(`Experiment Sample`,na.rm = TRUE),
+    mean = mean(`YoungsModulus`, na.rm = TRUE),
+    sd = sd(`YoungsModulus`, na.rm = TRUE),
+    median = median(`YoungsModulus`, na.rm = TRUE),
+    IQR = IQR(`YoungsModulus`, na.rm = TRUE),
+    se = sd(`YoungsModulus`, na.rm = TRUE)/sqrt(count),
+    normality = shapiro.test(`YoungsModulus`)$p.value
+  )
+SynthesisMatrix
+```
+
+#### 5. line plot
+```{r fig.width = 6,fig.height = 3.5}
+windowsFonts(A = windowsFont("Times New Roman")) 
+
+stiffbox <- ggplot(SynthesisMatrix,aes(x=Yasix, y=mean, color=Status.y, shape=Status.y))+
+  geom_point(mapping = aes(x = Yasix, y = mean), data = SynthesisMatrix, size=4)+
+  geom_line(mapping = aes(x = Yasix, y = mean, color=Status.y, shape=Status.y), data = SynthesisMatrix, size=1)+
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se), width=18)+
+  theme_classic()+
+  labs( y="Young's modulus (kPa)", x="Distance from the edge of A549 spheroid (mm)")+
+  scale_color_discrete(name = "ECM ", labels=c("Compressed","Uncompressed"))+
+  theme_bw()+
+  border(size = 2)+
+  scale_shape_discrete(name = "ECM ", labels=c("Compressed","Uncompressed"))+
+  easy_center_title()+
+  scale_y_continuous(expand = c(0,0), breaks = seq(0,18,2), limits = c(0,12))+
+  scale_x_continuous(breaks = seq(0,200,50))+
+  theme(
+        axis.ticks = element_line(colour ="black",size = 1),
+        axis.ticks.length=unit(0.4, "cm"),
+        axis.text = element_text(size = 18, face = "bold", color = "black"),
+        axis.title.x = element_text(size = 18, face = "bold"),
+        axis.title.y = element_text(size=18, face = "bold", hjust = 1),
+        legend.position = "top",
+        legend.text = element_text(size=18, face = "bold"),
+        legend.title = element_text(size=18, face = "bold"),
+        plot.title = element_text(size=30, face = "bold"),
+        text = element_text(family ="A",size=12),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        legend.key = element_blank()
+        )
+stiffbox
+```
+##### Save the boxplot for paper
+```{r}
+ggsave("stiffboxplan.tiff",device = 'tiff', units = "in", width = 6,height = 3.5 ,dpi = 300)
+```

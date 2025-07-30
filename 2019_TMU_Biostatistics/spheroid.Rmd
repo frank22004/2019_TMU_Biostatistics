@@ -23,6 +23,15 @@ library(ggeasy)
 library(ggprism)
 library(lme4)
 library(knitr)
+#library(goft)
+library(openxlsx)
+library(jtools)
+library(glmm)
+library(fitdistrplus)
+library(ggtext)
+library(sjPlot)
+library(stringr)
+library(rstatix)
 ```
 
 1. Set up driver info and database path
@@ -44,19 +53,25 @@ channel <- odbcDriverConnect(PATH)
 ```{r Load}
 df_spheroid <- sqlQuery(channel,"SELECT * FROM Spheroid, Cell WHERE Spheroid.Cell=Cell.識別碼;", stringsAsFactors = FALSE)
 df_sample <- sqlQuery(channel,"SELECT * FROM Sample, Collagen_Membrane_Preparation WHERE Sample.Scaffolds=Collagen_Membrane_Preparation.識別碼;")
+df_drug <- sqlQuery(channel, "SELECT * FROM Drug, Material WHERE Drug.Drug = Material.MaterialID;")
 df_data <- merge(df_spheroid,df_sample,by.x="識別碼.1",by.y = "Cell",all.x = "TRUE")
+df_data_withdrug <- merge(df_data, df_drug,by.x = "GroupName", by.y = "ExperimentSample", all.x = "TRUE")
 df_spheroid
+```
+```{r}
+df_data_withdrug$MaterialName[is.na(df_data_withdrug$MaterialName)] <- "Control"
 ```
 
 4. Table on the Data
 
 ```{r}
 #df_data <- subset.data.frame(df_spheroid, `Cell` == 34)
-#[df_data$`Cell` == 25,]
+#[df_data$`Cell` == 25,],`SpheroidDensity`,`Ingredient`,`Status`,`Condition`,`Cell`,`Ancestor`,`Group Name.x`
 
-SynthesisMatrix <- df_data[df_data$`Cell` == 185,] %>%
-  group_by(`CulturedDate`,`SpheroidDensity`,`Ingredient`,`Status`,`Condition`,`Cell`,`Ancestor`,`Group Name.x`) %>%
+SynthesisMatrix <- df_data[df_data$CulturedDate<=4,] %>%
+  group_by(`CulturedDate`) %>%
   summarise(
+    n = n(),
     count = sum(!is.na(`Diameter`)),
     mean = mean(`Diameter`, na.rm = TRUE),
     sd = sd(`Diameter`, na.rm = TRUE),
@@ -67,9 +82,10 @@ SynthesisMatrix <- df_data[df_data$`Cell` == 185,] %>%
 
 SynthesisMatrix
 ```
+
 ```{r}
 #df_data_single <- subset.data.frame(df_data, `Cell` == 33)
-df_data_single <- subset.data.frame(df_data, `Cell` == 185)
+df_data_single <- subset.data.frame(df_data, `Cell` == 249)
 
 ggplot(df_data_single,aes(x=CulturedDate, y=Diameter), ylim=c(0,1000))+
   geom_point(color='gray')+
@@ -106,39 +122,111 @@ ggplot(df_spheroid,aes(x=CulturedDate, y=Diameter, group=SpheroidDensity))+
 
 ## Check every density
 ```{r}
-AllMatrix <-   df_data[df_data$CulturedDate <=8 & df_data$SpheroidDensity <= 1000 & df_data$Condition == "Spheroid" & 
-#                         df_data$Status != "Contaminated"&
-                       (df_data$Status == "CompressedWithCell" | df_data$Status == "UncompressedWithCell") | df_data$Status == "20%Coat" | df_data$Status == "80%Coat",]%>%
+AllMatrix <-   df_data_withdrug[df_data_withdrug$CulturedDate <=11 & df_data_withdrug$SpheroidDensity == 1000 & #df_data_withdrug$Condition == "Spheroid" & 
+                                  is.na(df_data_withdrug$Drug) &
+                         df_data_withdrug$Status != "Contaminated"&
+#                       (df_data_withdrug$Status == "CompressedWithCell" | df_data_withdrug$Status == "UncompressedWithCell" &
+#                        (df_data_withdrug$Status=="20%Coat"|df_data_withdrug$Status=="80%Coat") & (df_data_withdrug$Ingredient=="ScrappingCoating"|                                                                
+                       (
+#                         df_data_withdrug$Ingredient=="CollagenInStretch_flat"
+#  df_data_withdrug$Ingredient=="CollagenInCoverslide" |
+    df_data_withdrug$Ingredient=="ScrappingCoating"|
+  df_data_withdrug$Ingredient == "polyacryalmide"
+  )& df_data_withdrug$Status != "CulturingWithCell" &
+#  df_data_withdrug$Date.x != "2024-09-30" &
+  df_data_withdrug$AbandonSpheroid==FALSE & 
+  df_data_withdrug$day5Ratio!=0 & !is.na(df_data_withdrug$day5Ratio),]%>%
 #df_data[df_data$`Cell` == 23 | df_data$`Cell` == 25 | df_data$`Cell` == 33,] %>%
-  group_by(`CulturedDate`,`Condition`,`Status`,`SpheroidDensity`) %>%
+  group_by(`Drug`,`CulturedDate`,`Condition`,`Status`,`SpheroidDensity`,`Ingredient`) %>%
+#  summarise(
+#    count = sum(!is.na(`Diameter`)),
+#    mean = mean(`Diameter`, na.rm = TRUE),
+#    sd = sd(`Diameter`, na.rm = TRUE),
+#    median = median(`Diameter`, na.rm = TRUE),
+#    IQR = IQR(`Diameter`, na.rm = TRUE),
+#    se = sd(`Diameter`, na.rm = TRUE)/sqrt(count)
+#  )
   summarise(
-    count = sum(!is.na(`Diameter`)),
-    mean = mean(`Diameter`, na.rm = TRUE),
-    sd = sd(`Diameter`, na.rm = TRUE),
-    median = median(`Diameter`, na.rm = TRUE),
-    IQR = IQR(`Diameter`, na.rm = TRUE),
-    se = sd(`Diameter`, na.rm = TRUE)/sqrt(count)
+    n = n(),
+    N = n_distinct(`Group Name.x`,na.rm = TRUE),
+#    day5Ratio = mean(`day5Ratio`, na.rm = TRUE),
+    mean = mean(`day5Ratio`, na.rm = TRUE),
+    mean2 = mean(`day5Ratio`, na.rm = TRUE),
+    sd = sd(`day5Ratio`, na.rm = TRUE),
+    median = median(`day5Ratio`, na.rm = TRUE),
+    IQR = IQR(`day5Ratio`, na.rm = TRUE),
+    se = sd(`day5Ratio`, na.rm = TRUE)/sqrt(n)
   )
+
+colnames(AllMatrix)[which(names(AllMatrix)=="mean2")]<-c("day5Ratio")
+AllMatrix[AllMatrix$Ingredient=="CollagenInCoverslide",]$Ingredient <- c("Glass")
+AllMatrix[AllMatrix$Ingredient=="ScrappingCoating",]$Ingredient <- c("Glass")
+
+AllMatrix$Status <- factor(AllMatrix$Status, levels = c("20%Coat","80%Coat","CulturingWithCell"))
 
 AllMatrix
 ```
+
+```{r}
+plot(glmspheroid$CulturedDate,glmspheroid$day5Ratio, xlab="Cultured Day", ylab="Growth Ratio", col=factor(glmspheroid$Status))
+legend("topleft",
+       legend = levels(factor(glmspheroid$Status)),
+       pch = 19,
+       col = factor(levels(factor(glmspheroid$Status))))
+```
+```{r}
+descdist(glmspheroid$day5Ratio, discrete = FALSE)
+fitdist(glmspheroid$day5Ratio,"exp")
+```
+
+
+#### Export the excel for GLMM
+```{r}
+glmspheroid <- df_data_withdrug[df_data_withdrug$CulturedDate <=11 & df_data_withdrug$SpheroidDensity == 1000 & df_data_withdrug$Condition == "Spheroid" & is.na(df_data_withdrug$Drug) &
+                         df_data_withdrug$Status != "Contaminated"&
+#                       (df_data_withdrug$Status == "CompressedWithCell" | df_data_withdrug$Status == "UncompressedWithCell"|
+#                        df_data_withdrug$Status=="20%Coat"|df_data_withdrug$Status=="80%Coat"
+#                        | 
+#  df_data_withdrug$Status == "CulturingWithCell") &
+  (
+#  df_data_withdrug$Ingredient=="CollagenInCoverslide" |
+   df_data_withdrug$Ingredient=="ScrappingCoating"  |
+#     df_data_withdrug$Ingredient=="CollagenInStretch_flat" 
+    df_data_withdrug$Ingredient == "polyacryalmide" 
+#    df_data_withdrug$Status == "CulturingWithCell"
+  ) &  df_data_withdrug$Status != "CulturingWithCell" &
+#  df_data_withdrug$Date.x != "2024-09-30" &
+  df_data_withdrug$AbandonSpheroid==FALSE & 
+  df_data_withdrug$day5Ratio!=0 & !is.na(df_data_withdrug$day5Ratio),]
+#glmspheroid[glmspheroid$Ingredient=="CollagenInCoverslide",]$Ingredient <- c("Glass")
+#glmspheroid[glmspheroid$Ingredient=="ScrappingCoating",]$Ingredient <- c("Glass")
+
+#write.xlsx(glmspheroid,'spheroid_woPAandGlass_monomer.xlsx')
+
+head(glmspheroid)
+```
+
 
 ```{r}
 days <- c(1,2,3,4,5,6,7)
 days
 ```
 
+
+
+
 ## Paper style plot - spheroid on ECM
-```{r fig.width = 7,fig.height = 4}
+```{r  fig.width = 6,fig.height = 6}
+#fig.width = 6,fig.height = 3.8
 #my_xlab <- paste(levels(factor(AllMatrix$CulturedDate)),"\n  ",sep="")
 my_xlab <- paste(days)
 
-df_data_All <- subset.data.frame(df_data, CulturedDate <=11 & SpheroidDensity == 1000 & Condition == "Spheroid" & #Status != "Contaminated"& 
-                       (Status == "CompressedWithCell" | Status == "UncompressedWithCell"))
+#df_data_All <- subset.data.frame(df_data, CulturedDate <=11 & SpheroidDensity == 1000 & Condition == "Spheroid" & #Status != "Contaminated"& 
+#                       (Status == "CompressedWithCell" | Status == "UncompressedWithCell"))
 # Specify font
 windowsFonts(A = windowsFont("Times New Roman")) 
 
-pre <- ggplot(df_data_All,aes(x=CulturedDate, y=Diameter, group=SpheroidDensity, shape=Status,color=Status))+
+pre <- ggplot(glmspheroid,aes(x=CulturedDate, y=Diameter, group=SpheroidDensity, shape=Status,color=Status))+
   geom_point(size=1.5)+
   geom_line(aes(group=interaction(Spheroid,Status)),size=1,linetype="dotted")+
   geom_point(mapping = aes(x = CulturedDate, y = mean), data = AllMatrix, size=15)+
@@ -166,68 +254,48 @@ pre <- ggplot(df_data_All,aes(x=CulturedDate, y=Diameter, group=SpheroidDensity,
 #        axis.title.x = element_text(hjust = 1),
         axis.title.x = element_blank(),
         text = element_text(family ="A"))
-pre
+#pre
 
-growth <- ggplot(df_data_All,aes(x=CulturedDate, y=Diameter, group=SpheroidDensity, shape=Status,color=Status))+
-  geom_point(size=1)+
-  geom_line(aes(group=interaction(Spheroid,Status)),size=0.5,linetype="dotted")+
-  geom_point(mapping = aes(x = CulturedDate, y = mean), data = AllMatrix, size=5)+
-  geom_line(mapping = aes(x = CulturedDate, y = mean, group=Status), data = AllMatrix, size=1.5)+
-#  geom_text(data = AllMatrix, aes(x = CulturedDate, y = mean, label=paste(round(mean,digits = 0))),parse = TRUE, vjust=-2, size=4,fontface = "bold")+ 
-#  facet_wrap(~SpheroidDensity, labeller = "label_both")+
-  theme_classic()+
-  labs( y="Diameter (μm)", x="Cultured Date (days)", title = "Spheroid Expansion")+
-  scale_y_continuous(expand = c(0,0), breaks = seq(0,2000,200))+
-  scale_x_continuous(labels=my_xlab, breaks = seq(5,11,1))+
-#  scale_color_discrete(name = "ECM ",label=c("2.5D","Compressed","Glass","3D","Uncompressed"))+
-  theme(axis.line = element_line(size = 2, color = "black"),
-        axis.ticks = element_line(size = 2, color = "black"),
-        axis.ticks.length=unit(0.4, "cm"),
-#        prism.ticks.length.y = unit(0.12, "cm"),
-        axis.text = element_text(size = 20, color = "black", face = "bold"),
-        axis.title = element_text(size = 20, face = "bold",hjust = 1),
-        legend.position = "none",
-        legend.text = element_text(size=25, face = "bold"),
-        legend.title = element_text(size=25, face = "bold"),
-#        axis.line.y = element_blank(),
-#        axis.text.y = element_blank(),
-#        axis.ticks.y = element_blank(),
-#        axis.title.y = element_blank(),
-#        axis.title.x = element_text(hjust = 1),
-#        axis.title.x = element_blank(),
-        text = element_text(family ="A"),
-        plot.title = element_text(size = 25, face = "bold"))+
-  easy_center_title()
+#tiff("growth_collagenOnly.tiff", units = "in", width = 6,height = 3.8 , res = 1200)
+# New facet label names for dose variable
+#ingredient.labs <- c("Glass","Polyacrylamide")
+#names(ingredient.labs) <- c("ScrappingCoating","polyacryalmide")
 
-growth
-```
-```{r fig.width = 7,fig.height = 3.5}
-ggplot(AllMatrix,aes(x=CulturedDate, y=mean, group=SpheroidDensity, shape=Status,color=Status))+
-  geom_point(mapping = aes(x = CulturedDate, y = mean), data = AllMatrix, size=5)+
-  geom_line(mapping = aes(x = CulturedDate, y = mean, group=Status), data = AllMatrix, size=1.5)+
-  geom_errorbar(aes(ymin=mean-se, ymax=mean+se), width=0.2,size=2)+
+growth <- ggplot(glmspheroid,aes(x=CulturedDate, y=day5Ratio, group=interaction(Status,Ingredient), shape=Status,color=Ingredient))+
+#  geom_hline(yintercept = 2.3,linetype="dotted", size=1.7, color="grey70")+
+#  geom_point(size=1)+
+#  geom_line(aes(group=interaction(Spheroid,Status)),size=0.2,linetype="dotted")+
+  geom_point(mapping = aes(x = CulturedDate, y = mean), data = AllMatrix, size=7)+
+  geom_errorbar(aes(ymin=day5Ratio-se, ymax=day5Ratio+se), data = AllMatrix,width=0.5, size=1.5)+
+  geom_line(mapping = aes(x = CulturedDate, y = mean, group=interaction(Status,Ingredient),linetype=Status), data = AllMatrix, size=4)+
 #  geom_text(data = AllMatrix, aes(x = CulturedDate, y = mean, label=paste(round(mean,digits = 0))),parse = TRUE, vjust=-2, size=4,fontface = "bold")+ 
-#  facet_wrap(~SpheroidDensity, labeller = "label_both")+
-#  theme_classic()+
+#  facet_wrap(~Ingredient, labeller = labeller(Ingredient = ingredient.labs))+
   theme_bw()+
-  border(size = 3)+
-  labs( y="Diameter (μm)", x="Cultured Date (days)", 
-#        title = "Spheroid Expansion"
+  border(size = 2)+
+  labs( y="Expansion Ratio (<sup>Φ<sub>i</sub></sup>/<sub>Φ<sub>1</sub></sub>)", x="Cultured Day"
+#        , title = "Spheroid Expansion"
         )+
-  scale_y_continuous(breaks = seq(0,2000,200))+
+  scale_y_continuous(expand = c(0,0), limits = c(0.9,4))+
   scale_x_continuous(labels=my_xlab, breaks = seq(5,11,1))+
-  scale_color_discrete(name = "ECM ",label=c("20%Coat","80%Coat","Compressed","Uncompressed",""))+
-  scale_shape_discrete(name = "ECM ",label=c("20%Coat","80%Coat","Compressed","Uncompressed",""))+
+#  scale_color_manual(values = c("black","grey40","darkblue"),name = "Collagen Film",label=c("20% Collagen","80% Collagen","collagen monomer"))+
+#  scale_shape_discrete(name = "Collagen Construct",label=c("Compressed","Uncompressed"))+
+#  scale_linetype_discrete(name = "Collagen Construct",label=c("Compressed","Uncompressed"))+
+#  scale_color_manual(values = c("black","grey40"),name = "Collagen Film",label=c("20% Collagen","80% Collagen"))+
+  scale_color_discrete(name = "Substrate",label=c("Glass","Polyacrylamide"))+
+  scale_shape_discrete(name = "Collagen Film",label=c("20% Collagen","80% Collagen"))+
+  scale_linetype_discrete(name = "Collagen Film",label=c("20% Collagen","80% Collagen"))+
+#  scale_color_discrete(name = "ECM ",label=c("2.5D","Compressed","Glass","3D","Uncompressed"))+
   theme(
-#        axis.line = element_line(size = 2, color = "black"),
-        axis.ticks = element_line(size = 2, color = "black"),
+#    axis.line = element_line(size = 1, color = "black"),
+        axis.ticks = element_line(size = 1, color = "black"),
         axis.ticks.length=unit(0.4, "cm"),
 #        prism.ticks.length.y = unit(0.12, "cm"),
-        axis.text = element_text(size = 26, color = "black", face = "bold"),
-        axis.title = element_text(size = 24, face = "bold"),
-        legend.position = "top",
-        legend.text = element_text(size=14, face = "bold"),
-        legend.title = element_text(size=14, face = "bold"),
+        axis.text = element_text(size = 25, color = "black", face = "bold"),
+        axis.title = element_text(size = 35, face = "bold"),
+        legend.position = c(0.21,0.78),
+#        legend.position = "left",
+        legend.text = element_text(size=15, face = "bold"),
+        legend.title = element_text(size=15, face = "bold"),
 #        axis.line.y = element_blank(),
 #        axis.text.y = element_blank(),
 #        axis.ticks.y = element_blank(),
@@ -237,32 +305,58 @@ ggplot(AllMatrix,aes(x=CulturedDate, y=mean, group=SpheroidDensity, shape=Status
         text = element_text(family ="A"),
         plot.title = element_text(size = 25, face = "bold"),
         panel.grid.major = element_blank(), 
-        panel.grid.minor = element_blank())+
+        panel.grid.minor = element_blank(),
+        axis.title.y = element_markdown(),
+        strip.text.x = element_text(size = 18, face = "bold"))+
   easy_center_title()
-```
-### Black
 
-```{r fig.width = 10,fig.height = 15}
+growth
+#dev.off()
+```
+```{r}
+growth
+#ggsave("growth_film.tiff",device = "tiff", dpi = 700)
+```
+
+
+```{r fig.width =10 ,fig.height = 5}
+#fig.width =4 ,fig.height = 5
+# fig.width = 3,fig.height = 10
+dose.labs <- c("Collagen Construct", "Glass","Polyacrylamide Gel","Collagen Film")
+names(dose.labs) <- c("CollagenInStretch_flat", "ScrappingCoating")
+
+tiff("Spheroid_compressed.tiff", units = "in", width = 10,height = 5 , res = 1200)
+
 ggplot(AllMatrix,aes(x=CulturedDate, y=mean, group=SpheroidDensity, shape=Status,color=Status))+
-  geom_point(mapping = aes(x = CulturedDate, y = mean), data = AllMatrix, size=15)+
-  geom_line(mapping = aes(x = CulturedDate, y = mean, group=Status), data = AllMatrix, size=5)+
-  geom_errorbar(aes(ymin=mean-se, ymax=mean+se), width=0.4, size=4)+
-#  geom_text(data = AllMatrix, aes(x = CulturedDate, y = mean, label=paste(round(mean,digits = 0))),parse = TRUE, vjust=-2, size=4,fontface = "bold")+ 
-#  facet_wrap(~SpheroidDensity, labeller = "label_both")+
-  theme_classic()+
-  labs( y="Mean Diameter (μm)", x="Cultured Date (days)", title = "Time course of change \n in the diameter of \n the A549 spheroid for 4 days"
-        )+
-  scale_y_continuous(expand = c(0,0), breaks = seq(0,2000,200))+
+  geom_point(mapping = aes(x = CulturedDate, y = mean), data = AllMatrix, size=4)+
+  geom_line(mapping = aes(x = CulturedDate, y = mean, group=Status), data = AllMatrix, size=1.5)+
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se), width=0.2,size=1)+
   scale_x_continuous(labels=my_xlab, breaks = seq(5,11,1))+
-#  scale_color_discrete(name = "ECM ",label=c("2.5D","Compressed","Glass","3D","Uncompressed"))+
-  theme(axis.line = element_line(size = 5, color = "white"),
-        axis.ticks = element_line(size = 5, colour ="white"),
-        axis.ticks.length=unit(0.5, "cm"),
+#  geom_text(data = AllMatrix, aes(x = CulturedDate, y = mean, label=paste(round(mean,digits = 0))),parse = TRUE, vjust=-2, size=4,fontface = "bold")+ 
+  facet_wrap(~Ingredient , labeller = labeller(Ingredient =dose.labs), nrow = 1, ncol = 4)+
+#  facet_grid(~Ingredient , labeller = labeller(Ingredient =dose.labs))+
+#  theme_classic()+
+  theme_bw()+
+  border(size = 2)+
+  labs( y="Expansion Ratio ( <sup>Φ<sub>i</sub></sup>/<sub>Φ<sub>1</sub></sub>)", x="Cultured Date (days)", 
+#        title = "Spheroid Expansion"
+        )+
+#  scale_y_continuous(breaks = seq(0,3,0.2))+
+#  scale_x_continuous(labels=my_xlab, breaks = seq(5,11,1))+
+  scale_color_discrete(name = "ECM ",label=c("20%Collagen","80%Collagen","Compressed","Glass","Uncompressed"))+
+  scale_shape_discrete(name = "ECM ",label=c("20%Collagen","80%Collagen","Compressed","Glass","Uncompressed"))+
+  theme(
+#        axis.line = element_line(size = 2, color = "black"),
+        axis.ticks = element_line(size = 2, color = "black"),
+        axis.ticks.length=unit(0.2, "cm"),
 #        prism.ticks.length.y = unit(0.12, "cm"),
-        axis.text = element_text(size = 50, color = "white", face = "bold"),
-        axis.title = element_text(size = 38, face = "bold",hjust = 1,colour = "white"),
-        legend.position = "top",
-        legend.text = element_text(size=18, face = "bold",colour = 'white'),
+        axis.text = element_text(size = 30, color = "black", face = "bold"),
+        axis.title = element_text(size = 19.5, face = "bold"),
+        axis.title.x = element_text(size = 23, face = "bold"),
+        legend.position = "right",
+        legend.justification = "bottom",
+        legend.direction="vertical",
+        legend.text = element_text(size=20, face = "bold"),
         legend.title = element_text(size=20, face = "bold"),
 #        axis.line.y = element_blank(),
 #        axis.text.y = element_blank(),
@@ -270,12 +364,64 @@ ggplot(AllMatrix,aes(x=CulturedDate, y=mean, group=SpheroidDensity, shape=Status
 #        axis.title.y = element_blank(),
 #        axis.title.x = element_text(hjust = 1),
 #        axis.title.x = element_blank(),
+        axis.title.y = element_markdown(),
+        strip.text.x = element_text(size=23, face = "bold", color = "black"),
+        strip.background = element_rect(size = 2, linetype = "solid", colour = "black"),
+        text = element_text(family ="A"),
+        plot.title = element_text(size = 25, face = "bold"),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank())+
+  easy_center_title()+
+  geom_hline(yintercept = 2.3,linetype="dotted", size=1.7, color="darkgrey")
+
+dev.off()
+```
+### Black
+
+```{r fig.width = 8,fig.height = 10}
+ggplot(AllMatrix,aes(x=CulturedDate, y=mean, group=SpheroidDensity, shape=Status,color=Status))+
+#  geom_hline(yintercept = 2.3,linetype="dotted", size=3, color="grey70")+
+  geom_point(mapping = aes(x = CulturedDate, y = mean), data = AllMatrix, size=8)+
+  geom_line(mapping = aes(x = CulturedDate, y = mean, group=Status), data = AllMatrix, size=3)+
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se), width=0.4, size=2)+
+#  geom_text(data = AllMatrix, aes(x = CulturedDate, y = mean, label=paste(round(mean,digits = 0))),parse = TRUE, vjust=-2, size=4,fontface = "bold")+ 
+#  facet_wrap(~SpheroidDensity, labeller = "label_both")+
+  theme_classic()+
+  labs( y="Expansion Ratio ( <sup>Φ<sub>i</sub></sup>/<sub>Φ<sub>1</sub></sub>)", x="Cultured Date (days)"
+#        , title = "Time course of the A549 spheroid \n expansion for 7 days"
+        )+
+      theme_bw()+
+  border(size = 2, color = "white")+
+#  scale_y_continuous(expand = c(0,2.5),breaks = seq(0,2.5,0.5))+
+  scale_x_continuous(labels=my_xlab, breaks = seq(5,11,1))+
+#  scale_color_discrete(name = "ECM ",label=c("2.5D","Compressed","Glass","3D","Uncompressed"))+
+#  scale_shape_manual(values = c(15,3,17))+
+#  scale_color_manual(values = c("purple","yellow","blue"))+
+  theme(axis.line = element_line(size = 1, color = "white"),
+        axis.ticks = element_line(size = 5, colour ="white"),
+        axis.ticks.length=unit(0.5, "cm"),
+#        prism.ticks.length.y = unit(0.12, "cm"),
+        axis.text = element_text(size = 50, color = "white", face = "bold"),
+        axis.title = element_text(size = 38, face = "bold",colour = "white"),
+        legend.position = "none",
+        legend.text = element_text(size=25, face = "bold",colour = 'white'),
+        legend.title = element_text(size=25, face = "bold",colour = 'white'),
+#        axis.line.y = element_blank(),
+#        axis.text.y = element_blank(),
+#        axis.ticks.y = element_blank(),
+        axis.title.y = element_markdown(),
+#        axis.title.x = element_text(hjust = 1),
+#        axis.title.x = element_blank(),
         text = element_text(family ="A"),
         plot.title = element_text(size = 40, face = "bold",colour = "white"),
         panel.background = element_rect(fill = 'black'),
         plot.background=element_rect(fill = "black",colour = "black"),
-        legend.background = element_rect(fill = 'black'))+
-  easy_center_title()
+        legend.background = element_rect(fill = 'black'),
+        legend.key = element_rect(fill = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank())+
+  easy_center_title()+
+  ylim(c(1,5))
 ```
 
 
@@ -304,28 +450,40 @@ SingMatrix
 ```
 
 
-```{r}
-my_xlab <- paste(SingMatrix$`CulturedDate`,"\n(",SingMatrix$count,")",sep="")
+```{r fig.width = 4,fig.height = 4.5}
+#fig.width = 14,fig.height = 4
+#my_xlab <- paste(SingMatrix$`CulturedDate`,"\n(",SingMatrix$count,")",sep="")
+my_xlab <- paste(c("0","24","48","72","96"))
+windowsFonts(A = windowsFont("Times New Roman"))
 
-post <- ggplot(df_data_prep,aes(x=CulturedDate, y=Diameter))+
-  geom_point(size=2.3, color="gray")+
-  geom_line(aes(group=Spheroid),linetype="dotted", size=2, color="gray")+
-  geom_point(mapping = aes(x = CulturedDate, y = mean), data = SingMatrix, size=7)+
-  geom_line(mapping = aes(x = CulturedDate, y = mean), data = SingMatrix, size=6)+
-  theme_classic()+
-  labs( y="Diameter (μm)", x=" ")+
-  scale_y_continuous(guide = "prism_minor",minor_breaks = seq(200, 1800, 100),limits = c(200,2300),expand = c(0,0))+
-  theme(axis.line = element_line(size = 2, color = "black"),
-        axis.ticks = element_line(size = 2, color = "black"),
-        axis.ticks.length=unit(0.4, "cm"),
+tiff("growth_preparation.tiff", units = "in", width = 6,height = 4.5 , res = 1200)
+
+post <- ggplot(SingMatrix,aes(x=CulturedDate, y=mean, ymin=mean-se, ymax=mean+se))+
+#  geom_point(size=2.3, color="gray")+
+#  geom_line(aes(group=Spheroid),linetype="dotted", size=2, color="gray")+
+#  geom_point(mapping = aes(x = CulturedDate, y = mean), data = SingMatrix, size=7)+
+  geom_line(mapping = aes(x = CulturedDate, y = mean), data = SingMatrix, size=1.5)+
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se), data = SingMatrix, width=0.2, size=2)+
+  theme_bw()+
+  border(size = 2)+
+  labs( y="Diameter (μm)", x="Incubation (hours)")+
+#  scale_y_continuous(guide = "prism_minor",minor_breaks = seq(200, 1800, 100),limits = c(200,2300),expand = c(0,0))+
+  scale_y_continuous(breaks = c(0,200,400,600,800),expand = c(0,0),limits = c(0,900))+
+  scale_x_continuous(labels=my_xlab)+
+  theme(
+        axis.ticks = element_line(size = 1, color = "black"),
+        axis.ticks.length=unit(0.2, "cm"),
         prism.ticks.length.y = unit(0.2, "cm"),
-        axis.text = element_text(size = 50, color = "black", face = "bold"),
+        axis.text.x  = element_text(size = 30, color = "black", face = "bold"),
+        axis.text.y = element_text(size = 30, color = "black", face = "bold"),
 #        axis.title.x = element_text(size = 100, face = "bold"),
-        axis.title.y = element_text(size=60, face = "bold"),
-        text = element_text(family ="A"))+
-  scale_x_continuous(labels=my_xlab)
+        axis.title = element_text(size=30, face = "bold"),
+        text = element_text(family ="A"),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank())
 
 post
+dev.off()
 ```
 #### Combined
 ```{r  fig.width = 30,fig.height = 10}
@@ -374,14 +532,21 @@ ggplot(df_data_prep,aes(x=CulturedDate, y=Diameter))+
 ```{r}
 #df_data_reg <- subset.data.frame(df_data, `Cell` == 37 |`Cell` == 38 | `Cell` == 40 |`Cell` == 41)
 
-geerun <- geeglm(Diameter ~ factor(CulturedDate)+factor(Status)+factor(CulturedDate)*factor(Status), id=factor(Spheroid), data=df_data_All, family=gaussian , corstr = "ar1")
+geerun <- geeglm(day5Ratio ~ factor(CulturedDate)+factor(Status), id=factor(Spheroid), data=glmspheroid, family=Gamma , corstr = "ar1")
 summary(geerun)
 anova(geerun)
 ```
 ### GLMM
 ```{r}
-glmm <- glmer(Diameter ~ factor(CulturedDate)+factor(Status)+factor(Status)*factor(CulturedDate)+ (1|Spheroid), data = df_data_All, family=Gamma)
+glmm <-glmer(day5Ratio ~ factor(CulturedDate)+factor(Status)+ (1|Spheroid), 
+              data = glmspheroid
+              #data = df_data_withdrug[df_data_withdrug$CulturedDate <=8 & df_data_withdrug$SpheroidDensity == 1000 & df_data_withdrug$Condition == "Spheroid" & is.na(df_data_withdrug$Drug) &
+#                         df_data$Status != "Contaminated"&
+#                       (df_data_withdrug$Status == "CompressedWithCell" | df_data_withdrug$Status == "UncompressedWithCell") | df_data_withdrug$Status == "20%Coat" | df_data_withdrug$Status == "80%Coat",]
+, family=Gamma)
 summary(glmm)
+plot_model(glmm,axis.labels=c("Uncompressed", "Days"),show.values=TRUE,show.p = TRUE,title="Effect on A549 spheroid")
+VarCorr(glmm)
 ```
 
 
@@ -426,6 +591,7 @@ for (a in 1:length(Fourdays$Spheroid)) {
   df_spheroid[which(df_spheroid$Spheroid == Fourdays[a,]$Spheroid),]$fourdaysRatio <- df_spheroid$Diameter[which(df_spheroid$Spheroid == Fourdays[a,]$Spheroid)]/Fourdays[a,]$Diameter
 }
 head(df_spheroid)
+
 ```
 
 
@@ -436,12 +602,13 @@ sqlUpdate(channel,df_spheroid[,1:15],tablename = "Spheroid", index = "識別碼"
 
 ### The synthesis matrix of Growth ratio
 ```{r}
-FourDaysMatrix <-   df_data[df_data$CulturedDate <=20 & df_data$SpheroidDensity <= 1000 & df_data$Condition == "Spheroid" & 
+FourDaysMatrix <-   df_data_withdrug[df_data_withdrug$CulturedDate <=20 & df_data_withdrug$SpheroidDensity == 1000 & df_data_withdrug$Condition == "Spheroid" & df_data_withdrug$Ancestor != 185 &
 #                         df_data$Status != "Contaminated"&
-                       (df_data$Status == "CompressedWithCell" | df_data$Status == "UncompressedWithCell"),]%>%
+#                       (df_data$Status == "CompressedWithCell" | df_data$Status == "UncompressedWithCell"),]%>%
+   !is.na(df_data_withdrug$Drug),]%>%
 #| df_data$Status == "20%Coat" | df_data$Status == "80%Coat",]%>%
 #df_data[df_data$`Cell` == 23 | df_data$`Cell` == 25 | df_data$`Cell` == 33,] %>%
-  group_by(`CulturedDate`,`Condition`,`Status`,`SpheroidDensity`) %>%
+  group_by(`MaterialName`,`CulturedDate`,`Condition`,`Status`,`SpheroidDensity`) %>%
   summarise(
     count = sum(!is.na(`fourdaysRatio`)),
     mean = mean(`fourdaysRatio`, na.rm = TRUE),
@@ -460,16 +627,17 @@ ggplot(FourDaysMatrix,aes(x=CulturedDate, y=mean, group=SpheroidDensity, shape=S
   geom_point(mapping = aes(x = CulturedDate, y = mean), data = FourDaysMatrix, size=5)+
   geom_line(mapping = aes(x = CulturedDate, y = mean, group=Status), data = FourDaysMatrix, size=1.5)+
   geom_errorbar(aes(ymin=mean-se, ymax=mean+se), width=0.2,size=2)+
+  facet_wrap(~MaterialName)+
 #  geom_text(data = AllMatrix, aes(x = CulturedDate, y = mean, label=paste(round(mean,digits = 0))),parse = TRUE, vjust=-2, size=4,fontface = "bold")+ 
 #  facet_wrap(~SpheroidDensity, labeller = "label_both")+
 #  theme_classic()+
   theme_bw()+
   border(size = 3)+
   labs( y="Growth ratio \n (Diameter/initial Diameter)", x="Cultured Date (days)", 
-#        title = "Spheroid Expansion"
+        title = "Growth Ration over the day 4"
         )+
 #  scale_y_continuous(breaks = seq(0,2000,200))+
-#  scale_x_continuous(labels=my_xlab, breaks = seq(5,11,1))+
+  scale_x_continuous(labels=days, breaks = seq(5,11,1))+
 #  scale_color_discrete(name = "ECM ",label=c("20%Coat","80%Coat","Compressed","Uncompressed",""))+
 #  scale_shape_discrete(name = "ECM ",label=c("20%Coat","80%Coat","Compressed","Uncompressed",""))+
   theme(
@@ -488,6 +656,8 @@ ggplot(FourDaysMatrix,aes(x=CulturedDate, y=mean, group=SpheroidDensity, shape=S
 #        axis.title.y = element_blank(),
 #        axis.title.x = element_text(hjust = 1),
 #        axis.title.x = element_blank(),
+        strip.text.x = element_text(size=14, face = "bold", color = "black"),
+        strip.background = element_rect(size = 3, linetype = "solid", colour = "black"),
         text = element_text(family ="A"),
         plot.title = element_text(size = 25, face = "bold"),
         panel.grid.major = element_blank(), 
@@ -513,22 +683,28 @@ for (a in 1:length(Fourdays$Spheroid)) {
   df_spheroid[which(df_spheroid$Spheroid == Fourdays[a,]$Spheroid),]$day5Ratio <- df_spheroid$Diameter[which(df_spheroid$Spheroid == Fourdays[a,]$Spheroid)]/Fourdays[a,]$Diameter
 }
 head(df_spheroid)
+df_spheroid[df_spheroid$Spheroid=="810A",]
+Fourdays[Fourdays$Spheroid=="810A",]
 ```
 #### The synthesis matrix of Growth ratio
 ```{r}
-Day5Matrix <-   df_data[df_data$CulturedDate <=11 & df_data$SpheroidDensity == 1000 & df_data$Condition == "Spheroid" &
+Day5Matrix <-   df_data_withdrug[df_data_withdrug$CulturedDate <=11 & df_data_withdrug$SpheroidDensity == 1000 & df_data_withdrug$Condition == "Spheroid" & 
+#                                   df_data_withdrug$Ancestor != 185 &
 #                         df_data$Status != "Contaminated"&
-                       (df_data$Status == "CompressedWithCell" | df_data$Status == "UncompressedWithCell"),]%>%
-#| df_data$Status == "20%Coat" | df_data$Status == "80%Coat",]%>%
+                       (df_data_withdrug$Status == "CompressedWithCell" | df_data_withdrug$Status == "UncompressedWithCell") &
+#   is.na(df_data_withdrug$Drug)
+df_data_withdrug$MaterialName != "GM6001(Ilomastat)",]%>%
+  #| df_data$Status == "20%Coat" | df_data$Status == "80%Coat",]%>%
 #df_data[df_data$`Cell` == 23 | df_data$`Cell` == 25 | df_data$`Cell` == 33,] %>%
-  group_by(`CulturedDate`,`Condition`,`Status`,`SpheroidDensity`) %>%
+  group_by(`MaterialName`,`CulturedDate`,`Condition`,`Status`,`SpheroidDensity`) %>%
   summarise(
-    count = sum(!is.na(`day5Ratio`),na.rm = TRUE),
+    n = n(),
+    N = n_distinct(`Group Name.x`,na.rm = TRUE),
     mean = mean(`day5Ratio`, na.rm = TRUE),
     sd = sd(`day5Ratio`, na.rm = TRUE),
     median = median(`day5Ratio`, na.rm = TRUE),
     IQR = IQR(`day5Ratio`, na.rm = TRUE),
-    se = sd(`day5Ratio`, na.rm = TRUE)/sqrt(count)
+    se = sd(`day5Ratio`, na.rm = TRUE)/sqrt(n)
   )
 
 Day5Matrix
@@ -537,17 +713,19 @@ Day5Matrix
 ```{r}
 my_xlab <- paste(days)
 
-ggplot(Day5Matrix,aes(x=CulturedDate, y=mean, group=SpheroidDensity, shape=Status,color=Status))+
+ggplot(Day5Matrix,aes(x=CulturedDate, y=mean, group=SpheroidDensity, shape=MaterialName,color=MaterialName))+
   geom_point(mapping = aes(x = CulturedDate, y = mean), data = Day5Matrix, size=5)+
-  geom_line(mapping = aes(x = CulturedDate, y = mean, group=Status), data = Day5Matrix, size=1.5)+
+  geom_line(mapping = aes(x = CulturedDate, y = mean, group=MaterialName), data = Day5Matrix, size=1.5)+
   geom_errorbar(aes(ymin=mean-se, ymax=mean+se), width=0.2,size=2)+
+#  facet_wrap(~MaterialName)+
+  facet_wrap(~Status)+
 #  geom_text(data = AllMatrix, aes(x = CulturedDate, y = mean, label=paste(round(mean,digits = 0))),parse = TRUE, vjust=-2, size=4,fontface = "bold")+ 
 #  facet_wrap(~SpheroidDensity, labeller = "label_both")+
 #  theme_classic()+
   theme_bw()+
   border(size = 3)+
   labs( y= "Growth ratio \n (Diameter/initial Diameter)", x="Cultured Date (days)", 
-#        title = "Spheroid Expansion"
+        title = "Growth Ratio after 1 day adoption"
         )+
 #  scale_y_continuous(breaks = seq(0,2000,200))+
   scale_x_continuous(labels=my_xlab, breaks = seq(5,11,1))+
@@ -569,9 +747,205 @@ ggplot(Day5Matrix,aes(x=CulturedDate, y=mean, group=SpheroidDensity, shape=Statu
 #        axis.title.y = element_blank(),
 #        axis.title.x = element_text(hjust = 1),
 #        axis.title.x = element_blank(),
+        strip.text.x = element_text(size=14, face = "bold", color = "black"),
+        strip.background = element_rect(size = 3, linetype = "solid", colour = "black"),
         text = element_text(family ="A"),
         plot.title = element_text(size = 25, face = "bold"),
         panel.grid.major = element_blank(), 
         panel.grid.minor = element_blank())+
   easy_center_title()
 ```
+```{r}
+glmspheroid <- df_data_withdrug[df_data_withdrug$CulturedDate <=11 & df_data_withdrug$SpheroidDensity == 1000 & df_data_withdrug$Condition == "Spheroid" & 
+#                                   df_data_withdrug$Ancestor != 185 &
+#                         df_data$Status != "Contaminated"&
+                       (df_data_withdrug$Status == "CompressedWithCell" | df_data_withdrug$Status == "UncompressedWithCell") &
+#   is.na(df_data_withdrug$Drug)
+df_data_withdrug$MaterialName != "GM6001(Ilomastat)" ,]
+
+geerun <- geeglm(day5Ratio ~ MaterialName*Status*factor(CulturedDate), id=factor(Spheroid), data=glmspheroid, family=gaussian , corstr = "ar1")
+summary(geerun)
+anova(geerun)
+#vcov(geerun)
+```
+
+
+#### GlMM from glmm
+```{r}
+glmm(day5Ratio ~ Status+MaterialName+factor(CulturedDate)+MaterialName*Status, random = list(~0+Spheroid), data = glmspheroid,varcomps.names =c("Spheroid"),family.glmm = bernoulli.glmm)
+```
+
+
+#### GLMM for drug treatemnt
+```{r}
+glmmdrug <- glmer(day5Ratio ~ Status+MaterialName+factor(CulturedDate)+Status*MaterialName*factor(CulturedDate)+ (1|Spheroid), data = glmspheroid)
+#anova(glmmdrug)
+#summary(glmmdrug)
+summ(glmmdrug)
+```
+
+
+### Black(day5 Ratio)
+
+```{r fig.width = 10,fig.height = 15}
+ggplot(Day5Matrix,aes(x=CulturedDate, y=mean, group=SpheroidDensity, shape=Status,color=Status))+
+  geom_point(mapping = aes(x = CulturedDate, y = mean), data = Day5Matrix, size=15)+
+  geom_line(mapping = aes(x = CulturedDate, y = mean, group=Status), data = Day5Matrix, size=5)+
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se), width=0.4, size=4)+
+#  geom_text(data = AllMatrix, aes(x = CulturedDate, y = mean, label=paste(round(mean,digits = 0))),parse = TRUE, vjust=-2, size=4,fontface = "bold")+ 
+#  facet_wrap(~SpheroidDensity, labeller = "label_both")+
+#  theme_classic()+
+  theme_bw()+
+  border(size = 5, color = "white")+
+  labs( y="Growth ratio \n (Diameter/initial Diameter)", x="Cultured Date (days)", title = "Time course of change \n in the diameter of \n the A549 spheroid for 7 days"
+        )+
+  scale_y_continuous(breaks = seq(0,3,0.2))+
+  scale_x_continuous(labels=my_xlab, breaks = seq(5,11,1))+
+#  scale_color_discrete(name = "ECM ",label=c("2.5D","Compressed","Glass","3D","Uncompressed"))+
+  theme(
+#    axis.line = element_line(size = 5, color = "white"),
+        axis.ticks = element_line(size = 5, colour ="white"),
+        axis.ticks.length=unit(0.5, "cm"),
+#        prism.ticks.length.y = unit(0.12, "cm"),
+        axis.text = element_text(size = 50, color = "white", face = "bold"),
+        axis.title = element_text(size = 38, face = "bold",hjust = 1,colour = "white"),
+        legend.position = "None",
+        legend.text = element_text(size=18, face = "bold",colour = 'white'),
+        legend.title = element_text(size=20, face = "bold"),
+#        axis.line.y = element_blank(),
+#        axis.text.y = element_blank(),
+#        axis.ticks.y = element_blank(),
+#        axis.title.y = element_blank(),
+#        axis.title.x = element_text(hjust = 1),
+#        axis.title.x = element_blank(),
+        text = element_text(family ="A"),
+        plot.title = element_text(size = 40, face = "bold",colour = "white"),
+        panel.background = element_rect(fill = 'black'),
+        plot.background=element_rect(fill = "black",colour = "black"),
+        legend.background = element_rect(fill = 'black'),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank())+
+  easy_center_title()
+```
+```{r}
+write.xlsx(glmspheroid,'spheroid.xlsx')
+```
+
+### 1-week Expansion Potency
+```{r}
+oneweek <-  df_data_withdrug[df_data_withdrug$CulturedDate == 11 & df_data_withdrug$SpheroidDensity == 1000 & #
+                                  is.na(df_data_withdrug$Drug) &
+                         df_data_withdrug$Status != "Contaminated"&
+                       (df_data_withdrug$Ingredient=="ScrappingCoating"|
+                          df_data_withdrug$Ingredient == "polyacryalmide")&
+  df_data_withdrug$AbandonSpheroid==FALSE & 
+  df_data_withdrug$day5Ratio!=0 & !is.na(df_data_withdrug$day5Ratio),]
+
+oneweek$allStatus <- paste(oneweek$Status,oneweek$Ingredient)
+
+oneweekMatrix <- oneweek %>%
+  group_by(`allStatus`,`CulturedDate`,`Status`,`Ingredient`) %>%
+  summarise(
+    n = n(),
+    N = n_distinct(`Group Name.x`,na.rm = TRUE),
+    mean = mean(`day5Ratio`, na.rm = TRUE),
+    sd = sd(`day5Ratio`, na.rm = TRUE),
+    median = median(`day5Ratio`, na.rm = TRUE),
+    IQR = IQR(`day5Ratio`, na.rm = TRUE),
+    se = sd(`day5Ratio`, na.rm = TRUE)/sqrt(n),
+    normality = shapiro.test(`day5Ratio`)$p.value
+  )
+oneweekMatrix
+```
+
+#### Comparison
+```{r}
+pstat<- aov(`day5Ratio` ~ Status+Ingredient+Status*Ingredient, data=oneweek)
+summary(pstat)
+TukeyHSD(pstat)
+```
+```{r}
+pstat<- aov(`day5Ratio` ~ allStatus, data=oneweek)
+summary(pstat)
+TukeyHSD(pstat)
+```
+
+
+### Post-hoc by TukeyHSD
+```{r}
+a <- data.frame(TukeyHSD(pstat)[3])
+a_s <- a[!is.na(a[2]),]
+a_s$dollarsign <- ifelse(a_s$Status.Ingredient.p.adj <=0.0001,"$$$$",
+                         ifelse(a_s$Status.Ingredient.p.adj<=0.001,"$$$",
+                                ifelse(a_s$Status.Ingredient.p.adj<=0.01,"$$",
+                                       ifelse(a_s$Status.Ingredient.p.adj<=0.05,"$","ns"))))
+a_s$andsign <- ifelse(a_s$Status.Ingredient.p.adj<=0.0001,"&&&&",
+                         ifelse(a_s$Status.Ingredient.p.adj<=0.001,"&&&",
+                                ifelse(a_s$Status.Ingredient.p.adj<=0.01,"&&",
+                                       ifelse(a_s$Status.Ingredient.p.adj<=0.05,"&","ns"))))
+a_s$p.adj.signif <- ifelse(a_s$Status.Ingredient.p.adj<=0.0001,"****",
+                         ifelse(a_s$Status.Ingredient.p.adj<=0.001,"***",
+                                ifelse(a_s$Status.Ingredient.p.adj<=0.01,"**",
+                                       ifelse(a_s$Status.Ingredient.p.adj<=0.05,"*","ns"))))
+names(a_s)[names(a_s) == "Status.Ingredient.p.adj"] <-  "p.adj"
+a_s$`.y.` <- rep("day5Ratio")
+a_s$names <- rownames(a_s)
+a_s <- cbind(a_s,str_split_fixed(a_s$names,pattern = ":",n=3))
+names(a_s)[names(a_s) == "1"] <-  "group2"
+names(a_s)[names(a_s) == "2"] <-  "unb"
+a_s <- cbind(a_s,str_split_fixed(a_s$`unb`,pattern = "-",n=2))
+names(a_s)[names(a_s) == "1"] <-  "Ingredient"
+names(a_s)[names(a_s) == "2"] <-  "group1"
+#a_s[4,]$Ingredient <- c("polyacryalmide")
+
+#a_s[3,]$Ingredient <- c("polyacryalmide")
+
+a_s <- a_s%>%
+  add_x_position(dodge = 0.8,group ="Ingredient",x = "Status")
+
+
+a_s[3,]$xmax <-c(2.2)
+a_s[3,]$xmin <-c(0.8)
+a_s[4,]$xmax <-c(1.8)
+a_s[4,]$xmin <-c(1.2)
+
+a_s
+```
+
+
+
+### Boxplot
+```{r fig.width = 4.5,fig.height = 4}
+my_xlab <- c("20% Collagen","80% Collagen")
+windowsFonts(A = windowsFont("Times New Roman"))
+
+expansionOneWeek <- ggboxplot(data = oneweek, x="Status",y="day5Ratio", title = "Density",size = 0.6, fill = "Ingredient")+
+  scale_y_continuous(expand = c(0,0.005),limits = c(0,5.5))+
+  scale_x_discrete(labels=my_xlab)+
+  labs(y="Expansion Ratio (<sup>Φ<sub>7</sub></sup>/<sub>Φ<sub>1</sub></sub>)", x="Cultured Day")+
+  stat_pvalue_manual(a_s[2,],hide.ns = TRUE, size = 10, tip.length = 0, bracket.size = 1, step.increase = 0.01,  step.group.by = "Ingredient",y.position =  c(4.2),family = "A")+
+  stat_pvalue_manual(a_s[3:4,],hide.ns = TRUE, size = 6, tip.length = 0, bracket.size = 1, step.increase = 0.01,  y.position = c(5,4.6), label = "{dollarsign}",family = "A")+
+  theme_bw()+
+  border(size = 2)+
+  easy_center_title()+  
+  theme(axis.ticks.length=unit(0.2, "cm"),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.text.y = element_text(size = 20, color = "black", face = "bold"),
+        axis.text.x = element_text(size = 15, color = "black", face = "bold"),
+        axis.ticks.length.x = unit(0, "cm"),
+        axis.title = element_text(size = 20, face = "bold"),
+        legend.text = element_text(size=16, face = "bold"),
+        legend.title = element_text(size=16,face = "bold"),
+        plot.subtitle = element_text(size = 20, face = "bold",hjust = 0.5),
+        plot.title = element_blank(),
+        text = element_text(family ="A"),
+        legend.position = "none",
+#        legend.position = c(0.16,0.85),
+        axis.ticks = element_line(size = 1, colour = "black"),
+        axis.title.y = element_markdown(),
+        axis.title.x = element_blank()
+        )
+expansionOneWeek
+```
+

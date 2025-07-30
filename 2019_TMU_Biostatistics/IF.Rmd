@@ -17,6 +17,11 @@ library(ggeasy)
 library(ggprism)
 library(lme4)
 library(knitr)
+library(scales)
+library(knoter)
+library(ggtext)
+library(rstatix)
+library(stringr)
 ```
 
 1. Set up driver info and database path
@@ -39,20 +44,35 @@ channel <- odbcDriverConnect(PATH)
 df_if <- sqlQuery(channel,"SELECT * FROM IF;", stringsAsFactors = FALSE)
 df_sample <- sqlQuery(channel,"SELECT * FROM Sample, Collagen_Membrane_Preparation WHERE Sample.Scaffolds=Collagen_Membrane_Preparation.識別碼;")
 df_data <- merge(df_if,df_sample,by.x="GroupName",by.y = "GroupName",all.x = "TRUE")
+df_data_if <- subset.data.frame(df_data, (`Ingredient` == "ScrappingCoating" |`Ingredient` == "CollagenInCoverslide" | `Ingredient` == "polyacryalmide") & Target =="6"
+#                                & `Position` == "Periphery"
+                                )
+
+#df_data_if[df_data_if$Status=="CulturingWithCell",]$Status <- "0%Coat"
+df_data_if$Status <- factor(df_data_if$Status, levels = c("0%Coat","20%Coat","80%Coat"))
+
+#df_data_if[df_data_if$Ingredient=="CollagenInCoverslide",]$Ingredient <- "Glass"
+#df_data_if[df_data_if$Ingredient=="ScrappingCoating",]$Ingredient <- "Glass"
+df_data_if$culture <- ifelse(is.na(df_data_if$Cell),"Post","7days")
+df_data_if$All <- paste(df_data_if$culture,df_data_if$Ingredient,df_data_if$Status)
 ```
 
 4. Table on the Data
 
 ```{r}
-SynthesisMatrix <- df_data %>%
+SynthesisMatrix <- df_data_if %>%
   group_by(`Ingredient`,`Status`) %>%
+#  group_by(`Status`) %>%
   summarise(
-    count = sum(!is.na(`Count`)),
-    mean = mean(`Count`, na.rm = TRUE),
-    sd = sd(`Count`, na.rm = TRUE),
-    median = median(`Count`, na.rm = TRUE),
-    IQR = IQR(`Count`, na.rm = TRUE),
-    se = sd(`Count`, na.rm = TRUE)/sqrt(count)
+    count = sum(!is.na(`Thickness`)),
+#    N = n_distinct(`SpheroidName`,na.rm = TRUE),
+    N = n_distinct(`GroupName`,na.rm = TRUE),
+    mean = mean(`Thickness`, na.rm = TRUE),
+    sd = sd(`Thickness`, na.rm = TRUE),
+    median = median(`Thickness`, na.rm = TRUE),
+    IQR = IQR(`Thickness`, na.rm = TRUE),
+    se = sd(`Thickness`, na.rm = TRUE)/sqrt(count),
+    normality = shapiro.test(`Thickness`)$p.value
   )
 
 SynthesisMatrix
@@ -63,17 +83,71 @@ SynthesisMatrix
 #### 1. Comparison
 
 ```{r}  
-compare_means(`Count` ~ `Status`, data = df_data, method = "t.test")
+ifcomp <- compare_means(`Thickness` ~ `Status`, data = df_data_if, method = "t.test") %>%
+  add_x_position(dodge = 0.8,x = "Status")
+ifcomp
+```
+
+### 1.1. ANOVA
+```{r}
+#ifstat<- aov(`Ratio` ~ Status+Ingredient+Status*Ingredient, data=df_data_if)
+ifstat<- aov(`Thickness` ~ Status+Ingredient+Status*Ingredient, data=df_data_if)
+summary(ifstat)
+TukeyHSD(ifstat)
+iftukey <- data.frame(TukeyHSD(ifstat)[3])
+iftukey
+```
+
+### TukeyHSD post-hoc for ANOVA
+```{r}
+iftukey_s <- iftukey[!is.na(iftukey[2]),]
+
+iftukey_s$dollarsign <- ifelse(iftukey_s$Status.Ingredient.p.adj <=0.0001,"$$$$",
+                         ifelse(iftukey_s$Status.Ingredient.p.adj<=0.001,"$$$",
+                                ifelse(iftukey_s$Status.Ingredient.p.adj<=0.01,"$$",
+                                       ifelse(iftukey_s$Status.Ingredient.p.adj<=0.05,"$","ns"))))
+iftukey_s$andsign <- ifelse(iftukey_s$Status.Ingredient.p.adj<=0.0001,"&&&&",
+                         ifelse(iftukey_s$Status.Ingredient.p.adj<=0.001,"&&&",
+                                ifelse(iftukey_s$Status.Ingredient.p.adj<=0.01,"&&",
+                                       ifelse(iftukey_s$Status.Ingredient.p.adj<=0.05,"&","ns"))))
+iftukey_s$p.adj.signif <- ifelse(iftukey_s$Status.Ingredient.p.adj<=0.0001,"****",
+                         ifelse(iftukey_s$Status.Ingredient.p.adj<=0.001,"***",
+                                ifelse(iftukey_s$Status.Ingredient.p.adj<=0.01,"**",
+                                       ifelse(iftukey_s$Status.Ingredient.p.adj<=0.05,"*","ns"))))
+names(iftukey_s)[names(iftukey_s) == "Status.Ingredient.p.adj"] <-  "p.adj"
+iftukey_s$`.y.` <- rep("Ratio")
+iftukey_s$names <- rownames(iftukey_s)
+iftukey_s <- cbind(iftukey_s,str_split_fixed(iftukey_s$names,pattern = ":",n=3))
+names(iftukey_s)[names(iftukey_s) == "1"] <-  "group2"
+names(iftukey_s)[names(iftukey_s) == "2"] <-  "unb"
+iftukey_s <- cbind(iftukey_s,str_split_fixed(iftukey_s$`unb`,pattern = "-",n=2))
+names(iftukey_s)[names(iftukey_s) == "3"] <-  "Ingredient"
+names(iftukey_s)[names(iftukey_s) == "2"] <-  "group1"
+iftukey_s <- iftukey_s%>%
+  add_x_position(dodge = 0.8,group ="Ingredient",x = "Status")
+
+iftukey_s[2,]$xmax <- 1.2
+iftukey_s[3,]$xmax <- 2.2
+
+iftukey_s
 ```
 
 ### 2 barplot
 ```{r}
+# fig.width = 5,fig.height = 3.5
 windowsFonts(A = windowsFont("Times New Roman")) 
 
-ggbarplot(data = df_data, x="Status",y="Count", title = "Proliferation by ki67 staining",size = 1, add = "mean_se", error.plot = "upper_errorbar", add.params = list(size=1))+
-  scale_y_continuous(expand = c(0,0.1))+
+#tiff("ki67.tiff", units = "in", width = 5,height = 3.5 , res = 1200)
+ggboxplot(data = df_data_if, x="Status",y="Thickness", fill = "Ingredient", title = "Proliferation by ki67 staining",size = 1)+
+  scale_y_continuous(expand = c(0,0)
+#                     ,labels = percent, limits = c(0,0.8)
+                     )+
+#  stat_pvalue_manual(iftukey_s[2:4,],hide.ns = TRUE, size = 6, tip.length = 0,  step.increase = 0.01,y.position =  c(0.45,0.55,0.5),label = "{dollarsign}",family = "A", remove.bracket = TRUE)+
+#  stat_pvalue_manual(iftukey_s[5,],hide.ns = TRUE, size = 6, tip.length = 0,  step.increase = 0.01,y.position =  c(0.7),label = "{andsign}",family = "A", bracket.size = 1)+
 #  scale_x_discrete(labels=my_xlab,guide = guide_axis(n.dodge = 2))+
-  labs(y="Cell Counts")+
+#  scale_x_discrete(labels=c("20% Collagne","80% Collagne"))+
+  labs(y="% of nucleus <br> ( <sup>ki67+</sup> / <sub>Hoechst33342+</sub> )")+
+  scale_fill_manual(values = c("white","gray20"))+
   theme_bw()+
   border(size = 2)+
   easy_center_title()+  
@@ -86,15 +160,107 @@ ggbarplot(data = df_data, x="Status",y="Count", title = "Proliferation by ki67 s
         axis.title = element_text(size = 18, face = "bold"),
         legend.text = element_text(size=18, face = "bold"),
         legend.title = element_text(size=18,face = "bold"),
-        plot.subtitle = element_text(size = 20, face = "bold",hjust = 0.5),
+ #       plot.subtitle = element_text(size = 20, face = "bold",hjust = 0.5),
         plot.title = element_blank(),
         text = element_text(family ="A"),
 #        legend.position = c(0.18,0.85),
         legend.position = "none",
         axis.ticks = element_line(size = 1, colour = "black"),
-        axis.title.x = element_blank()
+        axis.title.x = element_blank(),
+        axis.title.y = element_markdown()
+        )
+#dev.off()
+```
+### 3. Boxplot with grouped color for median line
+```{r fig.width = 6.5,fig.height = 3.5}
+#fig.width = 4.5,fig.height = 2.5
+my_xlab <- c("Collagne Monomer","20% Collagen","80% Collagen")
+windowsFonts(A = windowsFont("Times New Roman")) 
+
+french_percent <- label_percent(
+  decimal.mark = ",",
+  suffix = ""
+)
+
+p <-ggplot(data =  df_data_if,aes(x=`Status`,y=Ratio))+
+         geom_boxplot(aes(group=interaction(Status,Ingredient),fill = Ingredient), size=0.8)+
+  scale_fill_manual(values = c("white","black"))
+
+dat <- ggplot_build(p)$data[[1]]
+
+p + geom_segment(data=dat, aes(x=xmin, xend=xmax, 
+                             y=middle, yend=middle, color=fill), size=1)+  
+  stat_summary(aes(group =interaction(Status,Ingredient)),geom = "errorbar", width = 0.7,fun.min = mean, fun = mean, fun.max = mean,position = position_dodge(0.75), linetype = "dashed", color=c("white","black","black","white","white"))+
+  scale_color_manual(values = c("white","black"))+
+  scale_x_discrete(labels=my_xlab)+
+  labs(y="% of nucleus <br> （<sup>ki67+</sup> / <sub>Hoechst33342+</sub>）")+
+  scale_y_continuous(expand = c(0,0.005),limits = c(0,0.8),labels = french_percent)+
+  stat_pvalue_manual(iftukey_s[2:4,],hide.ns = TRUE, size = 6, tip.length = 0,  step.increase = 0.01,y.position =  c(0.45,0.55,0.5),label = "{dollarsign}",family = "A", remove.bracket = TRUE)+
+  stat_pvalue_manual(iftukey_s[5,],hide.ns = TRUE, size = 6, tip.length = 0,  step.increase = 0.01,y.position =  c(0.7),label = "{andsign}",family = "A", bracket.size = 1)+
+  theme_bw()+
+  border(size = 2)+
+  easy_center_title()+  
+  theme(axis.ticks.length=unit(0.2, "cm"),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.text.y = element_text(size = 20, color = "black", face = "bold"),
+        axis.text.x = element_text(size = 15, color = "black", face = "bold"),
+        axis.ticks.length.x = unit(0, "cm"),
+        axis.title = element_text(size = 20, face = "bold"),
+        legend.text = element_text(size=16, face = "bold"),
+        legend.title = element_text(size=16,face = "bold"),
+        plot.subtitle = element_text(size = 20, face = "bold",hjust = 0.5),
+        plot.title = element_blank(),
+        text = element_text(family ="A"),
+        legend.position = "none",
+        axis.ticks = element_line(size = 1, colour = "black"),
+        axis.title.x = element_blank(),
+        axis.title.y = element_markdown()
         )
 ```
+
+#### Black
+```{r fig.width = 5,fig.height = 6}
+windowsFonts(A = windowsFont("Times New Roman")) 
+  
+ggboxplot(data = df_data_if, x="Status",y="Thickness", 
+#          title = "Thickness",
+          size = 1, color = "white",fill = "Ingredient")+
+  scale_y_continuous(expand = c(0,0),  limits = c(0,40))+
+  scale_x_discrete(labels=c("20%","80%"), name = "Collagen"
+#                   ,guide = guide_axis(n.dodge = 2)
+                   )+
+  labs(y="Thickness (μm)")+
+  theme_bw()+
+  border(size = 3, color = "white")+
+  easy_center_title()+
+    scale_linetype_binned()+
+#  labs(subtitle = get_test_label(anova_test(`Thickness` ~ Status+Ingredient,data = df_data_if), detailed = T))+
+#  scale_fill_manual(values = c("#00BFC4","#EE6363"))+
+  stat_pvalue_manual(iftukey_s[2:3,],hide.ns = TRUE, size = 7, tip.length = 0,  step.increase = 0.01,y.position =  c(35.3,37),label = "{dollarsign}",family = "A", bracket.size = 1, color = "white")+
+  theme(axis.ticks.length=unit(0.4, "cm"),
+#        axis.line = element_line(colour = "white",size = 1),
+        axis.ticks = element_line(colour ="white",size = 1),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+#        prism.ticks.length.y = unit(0.12, "cm"),
+        axis.text.y = element_text(size = 25, color = "white", face = "bold"),
+        axis.text.x = element_text(size = 22, color = "white", face = "bold"),
+        axis.title = element_text(colour = "white",size = 20, face = "bold"),
+        legend.text = element_text(colour = "white",size=25, face = "bold"),
+        legend.title = element_text(colour = "white",size=25,face = "bold"),
+        plot.subtitle = element_text(colour = "white",size = 18, face = "bold",hjust = 1),
+        plot.title = element_text(colour = "white",size=30, face = "bold"),
+        text = element_text(family ="A"),
+        legend.position = "none",
+        panel.background = element_rect(fill = 'black'),
+        plot.background=element_rect(fill = "black",colour = "black"),
+        legend.background = element_rect(fill = 'black'),
+        axis.title.x = element_text(size = 22, color = "white", face = "bold"),
+        axis.title.y = element_markdown()
+        )
+```
+
 
 ## Close and remove channel
 

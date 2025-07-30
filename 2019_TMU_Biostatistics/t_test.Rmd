@@ -1,0 +1,123 @@
+---
+title: "Paired T test"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+library("xlsx")
+library("tidyr")
+library("dplyr")
+```
+
+# 1. Reading the Excel file
+
+Loading the file through xlsx function. it returns an data frame, called GAGA_Data.
+
+```{r Excel}
+GAGA_Data_March<-read.xlsx("C:/Users/Mechanobiology/Downloads/11403_04.xlsx",sheetName = "11403")
+GAGA_Data_April<-read.xlsx("C:/Users/Mechanobiology/Downloads/11403_04.xlsx",sheetName = "11404")
+```
+
+# 2. 空值填0
+  * ##   3月份
+```{r}
+GAGA_Data_March[is.na(GAGA_Data_March)] <- 0
+print(GAGA_Data_March)
+```
+  * 轉成long
+```{r}
+long_march <- GAGA_Data_March %>%
+  pivot_longer(
+    cols = "歷史":"住院",
+    names_to = "Group",
+    values_to = "value"
+  )
+long_march
+```
+  * descriptive statistics
+```{r}
+long_march_descriptive <- long_march %>%
+  group_by(Group) %>%
+  summarise(
+    n = sum(!is.na(`value`)),
+    mean = mean(`value`, na.rm = TRUE),
+    sd = sd(`value`, na.rm = TRUE)
+  )
+
+long_march_descriptive
+```
+  
+  
+  
+  * ##  4月份
+```{r}
+GAGA_Data_April[is.na(GAGA_Data_April)] <- 0
+print(GAGA_Data_April)
+```
+  
+  * 轉成long
+```{r}
+long_April <- GAGA_Data_April %>%
+  pivot_longer(
+    cols = "歷史":"住院",
+    names_to = "Group",
+    values_to = "value"
+  )
+long_April
+```
+  * descriptive statistics
+```{r}
+long_April_descriptive <- long_April %>%
+  group_by(Group) %>%
+  summarise(
+    n = sum(!is.na(`value`)),
+    mean = mean(`value`, na.rm = TRUE),
+    sd = sd(`value`, na.rm = TRUE)
+  )
+
+long_April_descriptive
+```
+
+# 歷史
+```{r}
+hist <- t.test(GAGA_Data_April$歷史,GAGA_Data_March$歷史,paired = TRUE)
+hist
+print("The standard deviation of the mean difference is")
+print(hist$stderr)
+```
+
+# 檢驗
+```{r}
+exam <- t.test(GAGA_Data_April$檢驗,GAGA_Data_March$檢驗,paired = TRUE)
+exam
+print("The standard deviation of the mean difference is")
+print(exam$stderr)
+```
+
+# 放射
+```{r}
+radio <- t.test(GAGA_Data_April$放射,GAGA_Data_March$放射,paired = TRUE)
+radio
+print("The standard deviation of the mean difference is")
+print(radio$stderr)
+```
+
+# 檢查
+```{r}
+examine <- t.test(GAGA_Data_April$檢查,GAGA_Data_March$檢查,paired = TRUE)
+examine
+print("The standard deviation of the mean difference is")
+print(examine$stderr)
+```
+# 住院
+```{r}
+hospital <- t.test(GAGA_Data_April$住院,GAGA_Data_March$住院,paired = TRUE)
+hospital
+print("The standard deviation of the mean difference is")
+print(hospital$stderr)
+```
+

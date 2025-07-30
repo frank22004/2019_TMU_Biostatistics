@@ -1,0 +1,189 @@
+---
+title: "Zymography"
+output: html_notebook
+author: "Frank"
+date: "`r Sys.Date()`"
+---
+
+## Loading `r version[['version.string']]` and following packages, Set up the connection:
+
+```{r cars, echo = TRUE}
+library(RODBC)
+library(UsingR)
+library(ggpubr)
+library(ggplot2)
+library(ggsignif)
+library(dplyr)
+library(ggeasy)
+library(ggplot2)
+library(rstatix)
+library(stringr)
+library(fitdistrplus)
+library(knitr)
+library(multcomp)
+library(xlsx)
+library(grid)
+library(ggbreak)
+library(plotrix)
+library(ggpattern)
+library(gee)
+library(geepack)
+library(stats)
+library(knoter)
+```
+
+#### 1.  Set up driver info and database path
+
+```{r access_path}
+DRIVERINFO <- "Driver={Microsoft Access Driver (*.mdb, *.accdb)};"
+MDBPATH <- "E:/OneDrive/文件/TMU-DESKTOP-SF2LD60-Surface-Go-Surface-Go.accdb"
+PATH <- paste0(DRIVERINFO, "DBQ=", MDBPATH)
+```
+
+#### 2.  Establish connection
+
+```{r connection}
+channel <- odbcDriverConnect(PATH)
+```
+
+#### 3.  Load data into R dataframe
+
+```{r Load}
+df_if <- sqlQuery(channel,"SELECT * FROM Zymography;", stringsAsFactors = FALSE)
+df_sample <- sqlQuery(channel,"SELECT * FROM Sample, Collagen_Membrane_Preparation WHERE Sample.Scaffolds=Collagen_Membrane_Preparation.識別碼;")
+df_data <- merge(df_if,df_sample,by.x="GroupName",by.y = "GroupName",all.x = "TRUE")
+
+df_data <- subset.data.frame(df_data, `Ingredient` != "CollagenInStretch_PBS" & `Type`=="Cell" & !is.na(`MMP2`))
+```
+
+#### 4. Table on the Data
+
+```{r}
+SynthesisMatrix <- df_data %>%
+  group_by(`Type`,`Ingredient`,`Status`) %>%
+  summarise(
+    count = sum(!is.na(`MMP2`)),
+    N = n_distinct(`GroupName`,na.rm = TRUE),
+    mean = mean(`MMP2`, na.rm = TRUE),
+    sd = sd(`MMP2`, na.rm = TRUE),
+    median = median(`MMP2`, na.rm = TRUE),
+    IQR = IQR(`MMP2`, na.rm = TRUE),
+    se = sd(`MMP2`, na.rm = TRUE)/sqrt(count),
+    normality = shapiro.test(`MMP2`)$p.value
+  )
+
+SynthesisMatrix
+```
+
+
+#### 5. Comparison
+
+```{r}  
+t <- compare_means(MMP2 ~ Status, data = df_data, method = "t.test")
+t
+```
+#### 6. post-hoc
+
+```{r}
+dun <- df_data %>%
+#  group_by(Ingredient) %>%
+  t_test(MMP2 ~ Status)%>%
+  add_xy_position(fun = "mean_se", dodge = 0.8,x = "Status")
+dun
+```
+
+
+
+### 7. barplot
+```{r fig.width = 4,fig.height = 4}
+windowsFonts(A = windowsFont("Times New Roman")) 
+
+tiff("MMP2.tiff", units = "in", width = 4,height = 4 , res = 1200)
+
+# Make zeros print as "0" always
+prettyZero <- function(l){
+    max.decimals = max(nchar(str_extract(l, "\\.[0-9]+")), na.rm = T)-1
+    lnew = formatC(l, replace.zero = T, zero.print = "0",
+        digits = max.decimals, format = "f", preserve.width=T)
+    return(lnew)
+}
+
+ggbarplot(data = df_data, x="Status",y="MMP2", title = "MMP activity", size = 1.4, add = c("mean_se"), error.plot = "upper_errorbar", width = 0.6, fill = "Status", add.params = list(size = 1.5))+
+  geom_point(mapping = aes(x = Status, y = MMP2), data = df_data, size=5, shape=21)+
+  scale_y_continuous(expand = c(0,0.005),limits = c(0,2),labels = prettyZero)+
+  scale_x_discrete(labels=c("Uncompressed","Compressed"))+
+  labs(y="MMP2 activity \n (intensity fold change to uncompressed)")+
+  stat_pvalue_manual(t,hide.ns = TRUE, size = 10,tip.length = 0, step.increase = 0.1, label = "p.signif", y.position = 1.8,family = "A")+
+  scale_fill_manual(values = c("white","gray70"))+
+  theme_bw()+
+  border(size = 1.8)+
+  easy_center_title()+  
+  theme(axis.ticks.length=unit(0.2, "cm"),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+#        prism.ticks.length.y = unit(0.12, "cm"),
+        axis.text.y = element_text(size = 20, color = "black", face = "bold"),
+        axis.text.x = element_text(size = 15, color = "black", face = "bold"),
+        axis.title = element_text(size = 15, face = "bold"),
+        legend.text = element_text(size=18, face = "bold"),
+        legend.title = element_text(size=18,face = "bold"),
+        plot.subtitle = element_text(size = 20, face = "bold",hjust = 0.5),
+        plot.title = element_blank(),
+        text = element_text(family ="A"),
+#        legend.position = c(0.18,0.85),
+        legend.position = "none",
+        axis.ticks = element_line(size = 1, colour = "black"),
+        axis.title.x = element_blank()
+        )
+dev.off()
+```
+```{r  fig.width = 7,fig.height = 8}
+# Make zeros print as "0" always
+prettyZero <- function(l){
+    max.decimals = max(nchar(str_extract(l, "\\.[0-9]+")), na.rm = T)-1
+    lnew = formatC(l, replace.zero = T, zero.print = "0",
+        digits = max.decimals, format = "f", preserve.width=T)
+    return(lnew)
+}
+windowsFonts(A = windowsFont("Times New Roman")) 
+
+ggbarplot(data = df_data, x="Status",y="MMP2", title = "MMP activity", size = 2, add = c("mean_se"), error.plot = "upper_errorbar", width = 0.6, fill = "Status", add.params = list(size = 2),color = "white")+
+#  geom_point(mapping = aes(x = Status, y = MMP2, fill= Status), data = df_data, size=5, shape=21)+
+  scale_y_continuous(expand = c(0,0.005),limits = c(0,2),labels = prettyZero)+
+  scale_x_discrete(labels=c("Uncompressed","Compressed"))+
+  labs(y="MMP2 activity \n (intensity fold change to uncompressed)")+
+  stat_pvalue_manual(t,hide.ns = TRUE, size = 10,tip.length = 0, step.increase = 0.1, label = "p.signif", y.position = 1.8,family = "A", color = "white")+
+#  scale_fill_manual(values = c("white","gray70"))+
+  theme_bw()+
+  border(size = 3, color = "white")+
+  easy_center_title()+
+  labs(subtitle = get_test_label(t_test(`MMP2` ~ Status,data = df_data), detailed = T))+
+  theme(axis.ticks.length=unit(0.2, "cm"),
+        axis.ticks = element_line(colour ="white",size = 1),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+#        prism.ticks.length.y = unit(0.12, "cm"),
+        axis.text.y = element_text(size = 25, color = "white", face = "bold"),
+        axis.text.x = element_text(size = 25, color = "white", face = "bold"),
+        axis.title = element_text(colour = "white",size = 18, face = "bold"),
+        axis.title.x = element_blank(),
+        legend.text = element_text(colour = "white",size=25, face = "bold"),
+        legend.title = element_text(colour = "white",size=25,face = "bold"),
+        plot.subtitle = element_text(colour = "white",size = 20, face = "bold",hjust = 0.5),
+        plot.title = element_text(colour = "white",size=30, face = "bold"),
+        text = element_text(family ="A"),
+        legend.position = "none",
+        panel.background = element_rect(fill = 'black'),
+        plot.background=element_rect(fill = "black",colour = "black"),
+        legend.background = element_rect(fill = 'black')
+        )
+```
+
+## Close and remove channel
+
+```{r}
+close(channel)
+```
+
+
+
