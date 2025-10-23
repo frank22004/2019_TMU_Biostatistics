@@ -1,0 +1,385 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+library(openxlsx)
+library(reshape2)
+library(ggplot2)
+
+# Excelファイルを読み込む
+file_path <- "Boxplot.xlsx"  # ファイルパスを適切に指定してください
+sheet_name <- "siLMN"          # 読み取るシートの名前を指定してください
+
+data <- read.xlsx("N:/M2/Results/Boxplot.xlsx", sheet = sheet_name)
+#View(data)
+
+
+# データを長い形式に変換する
+ggdata <- reshape2::melt(data[, 1:6], variable.name = "variable", value.name = "value")
+
+# 'variable'列から条件とシナリオの情報を抽出する
+ggdata$condition <- sub("_(Pre|Post)", "", ggdata$variable)
+ggdata$scenario <- sub(".*(Pre|Post)", "\\1", ggdata$variable)
+
+# Max、Min、Shearそれぞれに対して一意の値を設定
+ggdata$variable <- factor(ggdata$variable, levels = c("Max_Pre", "Max_Post", "Min_Pre", "Min_Post", "Shear_Pre", "Shear_Post"))
+
+
+ggplot(ggdata, aes(x = factor(paste(scenario, condition, sep = "\n"), levels = c("Pre\nMax", "Post\nMax", "Pre\nMin", "Post\nMin", "Pre\nShear", "Post\nShear")), 
+                   y = value, fill = factor(variable, levels = c("Max_Pre", "Max_Post", "Min_Pre", "Min_Post", "Shear_Pre", "Shear_Post")), 
+                   group = interaction(variable, condition))) +
+  geom_boxplot(alpha = 0.3, width = 0.5, position = position_dodge(width = 0.5)) +
+  geom_jitter(position = position_jitter(width = 0.15), color = "black", size = 1.5) +
+  labs(x = "Principal strain", y = "Averaged strain") +
+  scale_x_discrete(labels = c("Pre\n", "Post\n", "Pre\n", "Post\n", "Pre\n", "Post\n")) +
+  scale_y_continuous(limits = c(-0.03, 0.045)) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 0, hjust = 0.5)) +
+  facet_grid(. ~ condition, scales = "free_x", space = "free_x") +
+  scale_fill_manual(values = c("blue", "blue", "red", "red", "green", "green")) +
+  theme(legend.position = "none",
+        strip.background = element_blank(),
+        strip.text = element_text(size = 14, face = "bold"),
+        axis.title.x = element_text(size = 14, face = "bold"),
+        axis.title.y = element_text(size = 14, face = "bold"),
+        axis.text.x = element_text(face = "bold", size = 12),
+        axis.text.y = element_text(face = "bold", size = 12)) +
+  labs(fill = "Data")
+
+# 作成した図を特定のパスに保存
+output_path <- "N:/M3/Writing journal paper/Boxplot/"
+output_filename <- paste(output_path, "Boxplot_siLMN.jpg", sep = "")
+
+ggsave(output_filename, plot = last_plot(), width = 10, height = 6, units = "in")
+```
+# nt to siLMN or TSA
+
+```{r}
+library(openxlsx)
+library(reshape2)
+library(ggplot2)
+
+# Excelファイルを読み込む
+file_path <- "Boxplot.xlsx"  # ファイルパスを適切に指定してください
+sheet_name <- "siLMN"          # 読み取るシートの名前を指定してください
+
+data <- read.xlsx("N:/M2/Results/Boxplot.xlsx", sheet = sheet_name)
+#View(data)
+
+
+# データを長い形式に変換する
+ggdata <- reshape2::melt(data[, 1:6], variable.name = "variable", value.name = "value")
+
+# 'variable'列から条件とシナリオの情報を抽出する
+ggdata$condition <- sub("_(Pre|Post)", "", ggdata$variable)
+ggdata$scenario <- sub(".*(Pre|Post)", "\\1", ggdata$variable)
+
+# Max、Min、Shearそれぞれに対して一意の値を設定
+ggdata$variable <- factor(ggdata$variable, levels = c("Max_Pre", "Max_Post", "Min_Pre", "Min_Post", "Shear_Pre", "Shear_Post"))
+
+
+ggplot(ggdata, aes(x = factor(paste(scenario, condition, sep = "\n"), levels = c("Pre\nMax", "Post\nMax", "Pre\nMin", "Post\nMin", "Pre\nShear", "Post\nShear")), 
+                   y = value, fill = factor(variable, levels = c("Max_Pre", "Max_Post", "Min_Pre", "Min_Post", "Shear_Pre", "Shear_Post")), 
+                   group = interaction(variable, condition))) +
+  geom_boxplot(alpha = 0.0, width = 0.8, position = position_dodge(width = 0.5),outlier.shape = NA) +
+  geom_dotplot(binaxis = "y", stackdir = "center", dotsize = 0.9, position = position_dodge(width = 0.5), binwidth = 0.0025 ,alpha = 0.6, aes(fill = factor(variable))) +
+  labs(x = "Principal strain", y = "Averaged strain") +
+  scale_x_discrete(labels = c("Pre\n", "Post\n", "Pre\n", "Post\n", "Pre\n", "Post\n")) +
+  scale_y_continuous(limits = c(-0.04, 0.05)) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 0, hjust = 0.5)) +
+  facet_grid(. ~ condition, scales = "free_x", space = "free_x") +
+  scale_fill_manual(values = c("blue", "blue", "red", "red", "green", "green")) +
+  theme(legend.position = "none",
+        strip.background = element_blank(),
+        strip.text = element_text(size = 14, face = "bold"),
+        axis.title.x = element_text(size = 14, face = "bold"),
+        axis.title.y = element_text(size = 14, face = "bold"),
+        axis.text.x = element_text(face = "bold", size = 12),
+        axis.text.y = element_text(face = "bold", size = 12)) +
+  labs(fill = "Data")
+
+# 作成した図を特定のパスに保存
+output_path <- "N:/M3/Writing journal paper/Boxplot/"
+output_filename <- paste(output_path, "Boxplot_siLMN.jpg", sep = "")
+
+ggsave(output_filename, plot = last_plot(), width = 10, height = 6, units = "in")
+```
+
+
+```{r}
+library(openxlsx)
+library(reshape2)
+library(ggplot2)
+
+# Excelファイルを読み込む
+file_path <- "Boxplot.xlsx"  # ファイルパスを適切に指定してください
+sheet_name <- "all_max"          # 読み取るシートの名前を指定してください
+
+data <- read.xlsx("N:/M2/Results/Boxplot.xlsx", sheet = sheet_name)
+#View(data)
+
+
+# データを長い形式に変換する
+ggdata <- reshape2::melt(data[, 1:8], variable.name = "variable", value.name = "value")
+
+# 'variable'列から条件とシナリオの情報を抽出する
+ggdata$condition <- sub("_(Pre|Post)", "", ggdata$variable)
+ggdata$scenario <- sub(".*(Pre|Post)", "\\1", ggdata$variable)
+
+# Max、Min、Shearそれぞれに対して一意の値を設定
+ggdata$variable <- factor(ggdata$variable, levels = c("WT_Pre", "WT_Post", "siNes1_Pre", "siNes1_Post", "siLMN_Pre", "siLMN_Post", "TSA_Pre", "TSA_Post"))
+
+
+ggplot(ggdata, aes(x = factor(paste(scenario, condition, sep = "\n"), levels = c("Pre\nWT", "Post\nWT", "Pre\nsiNes1", "Post\nsiNes1", "Pre\nsiLMN", "Post\nsiLMN", "Pre\nTSA", "Post\nTSA")), 
+                   y = value, fill = factor(variable, levels = c("WT_Pre", "WT_Post", "siNes1_Pre", "siNes1_Post", "siLMN_Pre", "siLMN_Post", "TSA_Pre", "TSA_Post")), 
+                   group = interaction(variable, condition))) +
+  geom_boxplot(alpha = 0.3, width = 0.5, position = position_dodge(width = 0.5)) +
+  geom_jitter(position = position_jitter(width = 0.15), color = "black", size = 1.5) +
+  labs(x = "Principal strain", y = "Averaged strain") +
+  scale_x_discrete(labels = c("Pre\n", "Post\n", "Pre\n", "Post\n", "Pre\n", "Post\n", "Pre\n", "Post\n")) +
+  scale_y_continuous(limits = c(-0.03, 0.045)) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 0, hjust = 0.5)) +
+  facet_grid(. ~ condition, scales = "free_x", space = "free_x") +
+  scale_fill_manual(values = c("gray","gray","blue", "blue", "red", "red", "green", "green")) +
+  theme(legend.position = "none",
+        strip.background = element_blank(),
+        strip.text = element_text(size = 14, face = "bold"),
+        axis.title.x = element_text(size = 14, face = "bold"),
+        axis.title.y = element_text(size = 14, face = "bold"),
+        axis.text.x = element_text(face = "bold", size = 12),
+        axis.text.y = element_text(face = "bold", size = 12)) +
+    labs(fill = "Data", color = "Data")  # 箱ひげ図とジッタープロットのデータに対応するラベルを設定
+
+
+
+# 作成した図を特定のパスに保存
+output_path <- "N:/M3/Writing journal paper/Boxplot/"
+output_filename <- paste(output_path, "Boxplot_max.jpg", sep = "")
+
+ggsave(output_filename, plot = last_plot(), width = 10, height = 6, units = "in")
+```
+# Violin plot
+```{r}
+
+library(openxlsx)
+library(reshape2)
+library(ggplot2)
+
+# Excelファイルを読み込む
+file_path <- "Boxplot.xlsx"  # ファイルパスを適切に指定してください
+sheet_name <- "NT_siLMN"       # 読み取るシートの名前を指定してください
+
+data <- read.xlsx("N:/M2/Results/Boxplot.xlsx", sheet = sheet_name)
+
+# データを長い形式に変換する
+ggdata <- reshape2::melt(data[, 1:6], variable.name = "variable", value.name = "value")
+
+# 'variable'列から条件とシナリオの情報を抽出する
+ggdata$condition <- sub("_(NT|siLMN)", "", ggdata$variable)
+ggdata$scenario <- sub(".*(NT|siLMN)", "\\1", ggdata$variable)
+
+# Max、Min、Shearそれぞれに対して一意の値を設定
+ggdata$variable <- factor(ggdata$variable, levels = c("Max_NT", "Max_siLMN", "Min_NT", "Min_siLMN", "Shear_NT", "Shear_siLMN"))
+
+ggplot(ggdata, aes(x = factor(paste(scenario, condition, sep = "\n"), levels = c("NT\nMax", "siLMN\nMax", "NT\nMin", "siLMN\nMin", "NT\nShear", "siLMN\nShear")), 
+                   y = value, fill = factor(variable, levels = c("Max_NT", "Max_siLMN", "Min_NT", "Min_siLMN", "Shear_NT", "Shear_siLMN")))) +
+  geom_violin(trim = FALSE, alpha = 0.3, width = 1.0, position = position_dodge(width = 0.75),adjust = 1.5) +
+  geom_boxplot(fill = "white",alpha = 1.0, width = 0.15, position = position_dodge(width = 0.75),outlier.color = NA) +
+  labs(x = "Principal strain", y = "Averaged strain") +
+  scale_x_discrete(labels = c("NT\n", "siLMN\n", "NT\n", "siLMN\n", "NT\n", "siLMN\n")) +
+  scale_y_coNTinuous(limits = c(-0.04, 0.05)) +
+  theme_classic() +
+  theme(axis.text.x = elemeNT_text(angle = 0, hjust = 0.5)) +
+  facet_grid(. ~ condition, scales = "free_x", space = "free_x") +
+  scale_fill_manual(values = c("blue", "blue", "red", "red", "green", "green")) +
+  theme(legend.position = "none",
+        strip.background = elemeNT_blank(),
+        strip.text = elemeNT_text(size = 20, face = "bold"),
+        axis.title.x = elemeNT_text(size = 20, face = "bold"),
+        axis.title.y = elemeNT_text(size = 20, face = "bold"),
+        axis.text.x = elemeNT_text( size = 18),
+        axis.text.y = elemeNT_text( size = 18)) +
+  labs(fill = "Data")
+
+# 作成した図を特定のパスに保存
+output_path <- "N:/M3/Writing journal paper/Boxplot/"
+output_filename <- paste(output_path, "Boxplot_NT_siLMN.jpg", sep = "")
+
+ggsave(output_filename, plot = last_plot(), width = 10, height = 6, units = "in")
+
+
+```
+
+
+
+ 
+# Boxplot siLMN
+```{r}
+library(openxlsx)
+library(reshape2)
+library(ggplot2)
+
+# Excelファイルを読み込む
+file_path <- "Boxplot.xlsx"  # ファイルパスを適切に指定してください
+sheet_name <- "WT_siLMN"     # 読み取るシートの名前を指定してください
+
+data <- read.xlsx("N:/M2/Results/Boxplot.xlsx", sheet = sheet_name)
+
+# データを長い形式に変換する
+ggdata <- reshape2::melt(data[, 1:9], variable.name = "variable", value.name = "value")
+
+# 'variable'列から条件とシナリオの情報を抽出する
+ggdata$condition <- sub("_(WT|siLMN_Pre|siLMN_Post)", "", ggdata$variable)
+ggdata$scenario <- sub(".*(WT|siLMN_Pre|siLMN_Post)", "\\1", ggdata$variable)
+
+# Max、Min、Shearそれぞれに対して一意の値を設定
+ggdata$variable <- factor(ggdata$variable, levels = c("Max_WT", "Max_siLMN_Pre", "Max_siLMN_Post", "Min_WT", "Min_siLMN_Pre", "Min_siLMN_Post", "Shear_WT", "Shear_siLMN_Pre","Shear_siLMN_Post"))
+
+ggplot(ggdata, aes(x = factor(paste(scenario, condition, sep = "\n"), levels = c("WT\nMax", "siLMN_Pre\nMax", "siLMN_Post\nMax","WT\nMin", "siLMN_Pre\nMin", "siLMN_Post\nMin","WT\nShear", "siLMN_Pre\nShear", "siLMN_Post\nShear")), 
+                   y = value, fill = factor(variable, levels = c("Max_WT", "Max_siLMN_Pre", "Max_siLMN_Post", "Min_WT", "Min_siLMN_Pre", "Min_siLMN_Post", "Shear_WT", "Shear_siLMN_Pre","Shear_siLMN_Post")))) +
+  geom_boxplot(alpha = 0.0, width = 0.8, position = position_dodge(width = 0.5),outlier.shape = NA) +
+  geom_dotplot(binaxis = "y", stackdir = "center", dotsize = 1.0, position = position_dodge(width = 0.5), binwidth = 0.002 ,alpha = 0.6, aes(fill = factor(variable))) +
+  labs(x = "Principal strain", y = "Averaged strain") +
+  scale_x_discrete(labels = c("WT\n", "Pre\n", "Post\n", "WT\n", "Pre\n", "Post\n", "WT\n", "Pre\n", "Post\n")) +
+  scale_y_continuous(limits = c(-0.04, 0.05)) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 0, hjust = 0.5)) +
+  facet_grid(. ~ condition, scales = "free_x", space = "free_x") +
+  scale_fill_manual(values = c("blue", "blue", "blue", "red", "red", "red", "green", "green","green")) +
+  theme(legend.position = "none",
+        strip.background = element_blank(),
+        strip.text = element_text(size = 20, face = "bold"),
+        axis.title.x = element_text(size = 20, face = "bold"),
+        axis.title.y = element_text(size = 20, face = "bold"),
+        axis.text.x = element_text(size = 18),
+        axis.text.y = element_text(size = 18)) +
+  labs(fill = "Data", color = "Data")  # 箱ひげ図とドットプロットのデータに対応するラベルを設定
+
+# 作成した図を特定のパスに保存
+output_path <- "N:/M3/Writing journal paper/Boxplot/"
+output_filename <- paste(output_path, "Boxplot_siLMN.jpg", sep = "")
+
+ggsave(output_filename, plot = last_plot(), width = 10, height = 6, units = "in")
+
+```
+
+
+
+Boxplot TSA
+```{r}
+library(openxlsx)
+library(reshape2)
+library(ggplot2)
+
+# Excelファイルを読み込む
+file_path <- "Boxplot.xlsx"  # ファイルパスを適切に指定してください
+sheet_name <- "WT_TSA"     # 読み取るシートの名前を指定してください
+
+data <- read.xlsx("N:/M2/Results/Boxplot.xlsx", sheet = sheet_name)
+
+# データを長い形式に変換する
+ggdata <- reshape2::melt(data[, 1:9], variable.name = "variable", value.name = "value")
+
+# 'variable'列から条件とシナリオの情報を抽出する
+ggdata$condition <- sub("_(WT|TSA_Pre|TSA_Post)", "", ggdata$variable)
+ggdata$scenario <- sub(".*(WT|TSA_Pre|TSA_Post)", "\\1", ggdata$variable)
+
+# Max、Min、Shearそれぞれに対して一意の値を設定
+ggdata$variable <- factor(ggdata$variable, levels = c("Max_WT", "Max_TSA_Pre", "Max_TSA_Post", "Min_WT", "Min_TSA_Pre", "Min_TSA_Post", "Shear_WT", "Shear_TSA_Pre","Shear_TSA_Post"))
+
+ggplot(ggdata, aes(x = factor(paste(scenario, condition, sep = "\n"), levels = c("WT\nMax", "TSA_Pre\nMax", "TSA_Post\nMax","WT\nMin", "TSA_Pre\nMin", "TSA_Post\nMin","WT\nShear", "TSA_Pre\nShear", "TSA_Post\nShear")), 
+                   y = value, fill = factor(variable, levels = c("Max_WT", "Max_TSA_Pre", "Max_TSA_Post", "Min_WT", "Min_TSA_Pre", "Min_TSA_Post", "Shear_WT", "Shear_TSA_Pre","Shear_TSA_Post")))) +
+  geom_boxplot(alpha = 0.0, width = 0.8, position = position_dodge(width = 0.5),outlier.shape = NA,notch = FALSE) +
+  geom_dotplot(binaxis = "y", stackdir = "center", dotsize = 1.0, position = position_dodge(width = 0.5), binwidth = 0.0015 ,alpha = 0.6, aes(fill = factor(variable))) +
+  labs(x = "Principal strain", y = "Averaged strain") +
+  scale_x_discrete(labels = c("NT\n", "Pre\n", "Post\n", "NT\n", "Pre\n", "Post\n", "NT\n", "Pre\n", "Post\n")) +
+  scale_y_continuous(limits = c(-0.03, 0.04)) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 0, hjust = 0.5)) +
+  facet_grid(. ~ condition, scales = "free_x", space = "free_x") +
+  scale_fill_manual(values = c("blue", "blue", "blue", "red", "red", "red", "green", "green","green")) +
+  theme(legend.position = "none",
+        strip.background = element_blank(),
+        strip.text = element_text(size = 20, face = "bold"),
+        axis.title.x = element_text(size = 20, face = "bold"),
+        axis.title.y = element_text(size = 20, face = "bold"),
+        axis.text.x = element_text(size = 18),
+        axis.text.y = element_text(size = 18)) +
+  labs(fill = "Data", color = "Data")  # 箱ひげ図とドットプロットのデータに対応するラベルを設定
+
+# 作成した図を特定のパスに保存
+output_path <- "N:/M3/Writing journal paper/Boxplot/"
+output_filename <- paste(output_path, "Boxplot_TSA.jpg", sep = "")
+
+ggsave(output_filename, plot = last_plot(), width = 10, height = 6, units = "in")
+
+```
+
+
+# Boxplot Green +/-
+```{r}
+library(openxlsx)
+library(reshape2)
+library(ggplot2)
+
+# Excelファイルを読み込む
+file_path <- "Boxplot.xlsx"  # ファイルパスを適切に指定してください
+sheet_name <- "Green"     # 読み取るシートの名前を指定してください
+
+data <- read.xlsx("N:/M2/Results/Boxplot.xlsx", sheet = sheet_name)
+
+# データを長い形式に変換する
+ggdata <- reshape2::melt(data[, 1:6], variable.name = "variable", value.name = "value")
+
+# 'variable'列から条件とシナリオの情報を抽出する
+ggdata$condition <- sub("_(Pre|Post)", "", ggdata$variable)
+ggdata$scenario <- sub(".*(Pre|Post)", "\\1", ggdata$variable)
+
+# all、plus、minusそれぞれに対して一意の値を設定
+ggdata$variable <- factor(ggdata$variable, levels = c("all_Pre", "all_Post", "plus_Pre", "plus_Post", "minus_Pre", "minus_Post"))
+
+
+ggplot(ggdata, aes(x = factor(paste(scenario, condition, sep = "\n"), levels = c("Pre\nall", "Post\nall", "Pre\nplus", "Post\nplus", "Pre\nminus", "Post\nminus")), 
+                   y = value, fill = factor(variable, levels = c("all_Pre", "all_Post", "plus_Pre", "plus_Post", "minus_Pre", "minus_Post")), 
+                   group = interaction(variable, condition))) +
+   geom_boxplot(alpha = 0.0, width = 0.8, position = position_dodge(width = 0.5),outlier.shape = NA,notch = FALSE) +
+  geom_dotplot(binaxis = "y", stackdir = "center", dotsize = 1.0, position = position_dodge(width = 0.5), binwidth = 0.0015 ,alpha = 0.6, aes(fill = factor(variable))) +
+  labs(x = "Principal strain", y = "Averaged strain") +
+  scale_x_discrete(labels = c("Pre\n", "Post\n", "Pre\nplus", "Post\nplus", "Pre\nminus", "Post\nminus")) +
+  scale_y_continuous(limits = c(-0.03, 0.04)) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 0, hjust = 0.5)) +
+  facet_grid(. ~ condition, scales = "free_x", space = "free_x") +
+  scale_fill_manual(values = c("blue", "blue", "red", "red", "green", "green")) +
+  theme(legend.position = "none",
+        strip.background = element_blank(),
+        strip.text = element_text(size = 14, face = "bold"),
+        axis.title.x = element_text(size = 14, face = "bold"),
+        axis.title.y = element_text(size = 14, face = "bold"),
+        axis.text.x = element_text(face = "bold", size = 12),
+        axis.text.y = element_text(face = "bold", size = 12)) +
+  labs(fill = "Data")
+
+
+# 作成した図を特定のパスに保存
+output_path <- "N:/M3/Writing journal paper/Boxplot/"
+output_filename <- paste(output_path, "Boxplot_Green.jpg", sep = "")
+
+ggsave(output_filename, plot = last_plot(), width = 10, height = 6, units = "in")
+
+```
+
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
