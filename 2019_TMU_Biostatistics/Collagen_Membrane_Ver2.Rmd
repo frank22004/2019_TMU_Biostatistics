@@ -1,0 +1,287 @@
+---
+title: "The repeatability and reproducibility of the Collagen Membrane"
+author: "Frank"
+date: "2022-09-27"
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 1. Configure environment and include the data
+
+The analysis is powered by `r version[['version.string']]`. It requires the following packages:
+
+```{r libaray, message=FALSE}
+library(readxl)
+library(UsingR)
+library(lessR)
+library(ggplot2)
+library(knitr)
+library(ggsignif)
+library(ggpubr)
+library(metRology)
+library(outliers)
+library(stats)
+library(rstatix)
+```
+
+Read the data from the excel files
+
+```{r Excel, echo=FALSE, include=FALSE}
+collagen <- read_excel("E:/OneDrive/Tokyo Metropolitan University/Collagen Membrane/Collagen Membrane.xlsx", sheet = 2)
+preparation <- read_excel("E:/OneDrive/Tokyo Metropolitan University/Collagen Membrane/Collagen Membrane.xlsx", sheet = 1)
+collagen_compression <- merge(collagen,preparation,by="Group Name", all.x = TRUE)
+kable(head(collagen_compression,5))
+```
+
+## 2. Group the data based on the buffer pH, centrifuge force, and centrifuge time
+
+### 2.1. construct the sub datasets for analysis
+
+```{r subgroup, echo=FALSE, Include=FALSE}
+reproducibilityUncomp <- subset.data.frame(collagen_compression, `Buffer pH` == 7.7 & `Status` == "Uncompressed" & `Total solution quantity (ml)` == 1)
+reproducibilitycomp <- subset.data.frame(collagen_compression, `Buffer pH` == 7.7 & `Status` == "Compressed" & `Total solution quantity (ml)` == 1 & `Centrifuge (rpm)`== 3000 & `Centrifuge Time (min)` == 10)
+UncompMean <- aggregate.data.frame(reproducibilityUncomp[c("Thickness (μm)")],list(Date = reproducibilityUncomp$Date.x), mean)
+UncompSD <- aggregate.data.frame(reproducibilityUncomp[c("Thickness (μm)")],list(Date = reproducibilityUncomp$Date.x), sd)
+compMean <- aggregate.data.frame(reproducibilitycomp[c("Thickness (μm)")],list(Date = reproducibilitycomp$Date.x), mean)
+compSD <- aggregate.data.frame(reproducibilitycomp[c("Thickness (μm)")],list(Date = reproducibilitycomp$Date.x), sd)
+```
+
+### 2.2. Uncompressed
+
+#### 2.2.1. The means of pH 7.7 collagen without compression in different time
+
+```{r 7.7, echo=FALSE}
+xtabs(`Thickness (μm)` ~ Date + Operator, aggregate(
+  reproducibilityUncomp[c("Thickness (μm)")],
+  list(Date = reproducibilityUncomp$Date.x,
+       Operator = reproducibilityUncomp$Person),
+  mean
+))
+```
+
+#### 2.2.2. The SD of pH 7.7 collagen without compression in different time
+
+```{r, echo=FALSE}
+xtabs(`Thickness (μm)` ~ Date + Operator, aggregate(
+  reproducibilityUncomp[c("Thickness (μm)")],
+  list(Date = reproducibilityUncomp$Date.x,
+       Operator = reproducibilityUncomp$Person),
+  sd
+))
+```
+
+### 2.3. Compressed at 3000 rpm for 10 min
+
+#### 2.3.1. The means of pH 7.7 collagen after compressed
+
+```{r, echo=FALSE}
+xtabs(`Thickness (μm)` ~ Date + Operator, aggregate.data.frame(
+  reproducibilitycomp[c("Thickness (μm)")],
+  list(Date = reproducibilitycomp$Date.x,
+       Operator = reproducibilitycomp$Person),
+  mean
+))
+```
+
+#### 2.3.2. The SD of pH 7.7 collagen after compressed
+
+```{r, echo=FALSE}
+xtabs(`Thickness (μm)` ~ Date + Operator, aggregate.data.frame(
+  reproducibilitycomp[c("Thickness (μm)")],
+  list(Date = reproducibilitycomp$Date.x,
+       Operator = reproducibilitycomp$Person),
+  sd
+))
+```
+
+## 3. outlier
+
+### 3.1. Repeatability (Cochran's C test)
+
+#### 3.1.1. The uncompressed
+
+```{r, echo=FALSE}
+cochran.test(`Thickness (μm)` ~ Date.x, subset.data.frame(reproducibilityUncomp,Person == "Frank"))
+```
+
+##### Try to eliminate the outliers
+
+```{r, echo=FALSE}
+cochran.test(`Thickness (μm)` ~ Date.x, subset.data.frame(reproducibilityUncomp[-c(19,20),], Person == "Frank"))
+```
+
+It has shown that 2022-08-28 has outlying variance. The outliers are fathomed at quater 3 and 4 in 35mm Petri Dish. The plausible reason might be that the unbalanced stage of AFM cause various the depth for the first time. I measure the precise data after the second try.
+
+#### 3.1.2. The compressed
+
+```{r, echo=FALSE}
+cochran.test(`Thickness (μm)` ~ Date.x, subset.data.frame(reproducibilitycomp, Person == "Frank"))
+```
+
+Only one group can't compare to the previous.
+
+### 3.2. Reproducibility (Grubbs' Test)
+
+#### 3.2.1 The uncompressed
+
+```{r, echo=FALSE}
+grubbs.test(aggregate.data.frame(
+  reproducibilityUncomp[c("Thickness (μm)")],
+  list(Date = reproducibilityUncomp$Date.x),
+  mean
+)$`Thickness (μm)`)
+```
+
+##### 3.2.1.1. Mandel's h plot
+
+```{r, echo=FALSE}
+h_u <- with(reproducibilityUncomp, mandel.h(`Thickness (μm)`, g = Date.x))
+    barplot(h_u,las=2,col=c(2,3,3,3,3))
+    legend("topright",legend = levels(as.factor(reproducibilityUncomp$Person)),fill = c(3,2), cex=0.6)
+```
+
+##### 3.2.1.2. Mandel's k plot
+
+```{r, echo=FALSE}
+k <- with(reproducibilityUncomp, mandel.k(`Thickness (μm)`, g = Date.x))
+    barplot(k,las=2,col=c(2,3,3,3,3))
+    legend("topright",legend = levels(as.factor(reproducibilityUncomp$Person)),fill = c(3,2), cex=0.6)
+```
+
+The uncompressed group has no significant outlier though Mandel's k indicate higher SD at 8/28.
+
+#### 3.2.2. The compressed
+
+```{r, echo=FALSE}
+grubbs.test(aggregate.data.frame(
+  reproducibilitycomp[c("Thickness (μm)")],
+  list(Date = reproducibilitycomp$Date.x),
+  mean
+)$`Thickness (μm)`)
+```
+
+##### 3.2.2.1. Mandel's h plot
+
+```{r, echo=FALSE}
+h <- with(reproducibilitycomp, mandel.h(`Thickness (μm)`, g = Date.x))
+barplot(h,las=2,col=c(2,3))
+legend("topright",legend = levels(as.factor(reproducibilitycomp$Person)),fill = c(3,2), cex=0.6)
+```
+
+##### 3.2.2.2. Mandel's k plot
+
+```{r, echo=FALSE}
+k <- with(reproducibilitycomp, mandel.k(`Thickness (μm)`, g = Date.x))
+barplot(k,las=2,col=c(2,3))
+legend("topright",legend = levels(as.factor(reproducibilitycomp$Person)),fill = c(3,2), cex=0.6)
+```
+
+The repeatability conducted by Cochran's C test has shown that 2022-08-28 has outlying variance. After compressed, the thickness of collagen membrane doesn't contains the outliers.
+
+## 4. The relationship between SD and means
+
+### 4.1. The uncompressed
+
+#### 4.1.1. Linear model
+
+```{r, echo=FALSE, include=FALSE}
+correl <- cor(UncompSD$`Thickness (μm)`, UncompMean$`Thickness (μm)`)
+correl
+```
+
+The Pearson correlation between SD and mean reach `r round(correl,2)` which represent the `r if(correl >= 0.7){"strong correlation"}else if(correl <= 0.3){"weak correlation"}else{"medium correlation"}`.
+
+```{r, echo=FALSE}
+lmuncomp <- lm(UncompSD$`Thickness (μm)` ~ UncompMean$`Thickness (μm)`)
+summary(lmuncomp)
+```
+
+```{r, echo=FALSE}
+simple.lm(UncompMean$`Thickness (μm)`,UncompSD$`Thickness (μm)`,show.residuals = TRUE)
+```
+
+#### 4.1.2. Log model
+
+```{r, echo=FALSE}
+loguncomp <- lm(log10(UncompSD$`Thickness (μm)`) ~ log10(UncompMean$`Thickness (μm)`))
+summary(loguncomp)
+```
+
+```{r, echo=FALSE}
+simple.lm(log10(UncompMean$`Thickness (μm)`),log10(UncompSD$`Thickness (μm)`), show.residuals = TRUE)
+```
+
+The uncompressed thickness doesn't fit the linear and log model. The pearson correlation indicates the thicker the collagen membrane is, the higher SD the measurement is. The plausible reason might be the dispense error which results in the undulated surface at first trial. The correction measurement is to stir the Petri dish as soon as dispensing the collagen mixture.
+
+### 4.2. The compressed
+
+#### 4.2.1. Linear model
+
+```{r, echo=FALSE}
+cor(compSD$`Thickness (μm)`, compMean$`Thickness (μm)`)
+lmcomp <- lm(compSD$`Thickness (μm)` ~ compMean$`Thickness (μm)`)
+summary(lmcomp)
+```
+
+```{r, echo=FALSE}
+simple.lm(compMean$`Thickness (μm)`,compSD$`Thickness (μm)`,show.residuals = TRUE)
+```
+
+It fits the linear line though the small sample size data exists. Thus, log model is unnecessary. It is consistent with the uncompressed collagen membrane. The thicker the collagen membrane is, the higher SD the measurement is.
+
+## 5. Reproducibility by one-way ANOVA
+
+### 5.1. The uncompressed
+
+```{r, echo=FALSE}
+reproducibilityUncomp$Date.x <- as.factor(reproducibilityUncomp$Date.x)
+#Supported by Reddit
+UncompANOVA <- aov(`Thickness (μm)` ~ Date.x, data = reproducibilityUncomp)
+summary(UncompANOVA)
+```
+
+```{r, echo=FALSE}
+tukeyUncomp <- tukey_hsd(UncompANOVA)
+tukeyUncomp
+```
+
+```{r uncomp_boxplot, echo=FALSE}
+#support by Reddit(https://github.com/kassambara/ggpubr/issues/102)
+ggboxplot(reproducibilityUncomp, x = "Date.x", y= "Thickness (μm)", color="Person", add = "jitter", xlab = "Test Date") + 
+  stat_pvalue_manual(
+    tukeyUncomp, 
+    label = "p.adj.signif",
+    y.position = c(650,700,750,900,600,800,850,550,650,600))
+```
+
+### 5.2. The compressed
+
+```{r, echo=FALSE}
+reproducibilitycomp$Date.x <- as.factor(reproducibilitycomp$Date.x)
+compANOVA <- aov(`Thickness (μm)` ~ Date.x, data = reproducibilitycomp)
+summary(compANOVA)
+```
+
+```{r, echo=FALSE}
+tukeycomp <- tukey_hsd(compANOVA)
+tukeycomp
+```
+
+```{r comp_boxplot, echo=FALSE}
+ggboxplot(reproducibilitycomp, x = "Date.x", y= "Thickness (μm)", color="Person", add = "jitter", xlab = "Test Date")+
+  stat_pvalue_manual(
+    tukeycomp,
+    label = "p.adj.signif",
+    y.position = c(160)
+  )
+```
+
+# Conclusion: The reproducibility conducted by Grubbs' test has shown that the measurement error is consistent with 沢崎さん even compressed. However, the mean thickness of the collagen membrane are out of the previous data.

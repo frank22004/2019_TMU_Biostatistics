@@ -1,0 +1,60 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+library(RODBC)
+library(UsingR)
+library(ggpubr)
+library(ggplot2)
+library(ggsignif)
+library(dplyr)
+library(ggeasy)
+library(ggplot2)
+library(rstatix)
+library(stringr)
+library(fitdistrplus)
+library(knitr)
+library(multcomp)
+library(xlsx)
+library(grid)
+library(ggbreak)
+library(plotrix)
+library(ggpattern)
+library(gee)
+library(geepack)
+library(stats)
+library(scales)
+library(ggtext)
+library(TOSTER)
+library(lme4)
+library(sjPlot)
+```
+
+# The manual way to set the effect-size plot
+
+```{r}
+TOSTmeta(ES = 0.07, 
+se =  0.0918,
+low_eqbound_d = -0.2,
+high_eqbound_d = 0.2)
+```
+```{r}
+PA <- read.xlsx("E:/OneDrive - 東京都公立大学法人/Desktop/2019_TMU_Biostatistics/2019_TMU_Biostatistics/spheroid_onlyPA_glass.xlsx", sheetIndex = 1)
+```
+
+
+```{r}
+glmmdrug <- glmer(day5Ratio ~ factor(CulturedDate)+factor(TypeI_collagen_μl)+factor(Material)+(1|Spheroid), data = PA, family=Gamma(link = "log"), nAGQ = 20)
+summary(glmmdrug)
+```
+
+```{r}
+plot_model(glmmdrug)
+```
+

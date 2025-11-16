@@ -1,0 +1,68 @@
+---
+title: "Cantilever Tuning"
+author: "Frank"
+date: "`r Sys.Date()`"
+output: html_notebook
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 1. Configure environment and include the data
+
+The analysis is powered by r version[['version.string']]. It requires the following packages:
+
+```{r libaray, message=FALSE}
+library(readxl)
+library(dplyr)
+library(rstatix)
+library(ggpubr)
+library(ggplot2)
+library(ggsignif)
+library(ggeasy)
+library(PMCMR)
+library(PMCMRplus)
+```
+
+## Read the data from the excel files
+
+```{r pressure, echo=FALSE}
+df <- read_xlsx("E:/OneDrive/Tokyo Metropolitan University/shperoid.xlsx",sheet = 2)
+df
+```
+
+## Normal test
+
+```{r}
+normalTest <- shapiro.test(df$Diameter)
+simple.eda(df$Diameter)
+normalTest
+```
+
+```{r}
+normalTest <- shapiro.test(df$Retrace)
+simple.eda(df$Retrace)
+normalTest
+```
+```{r}
+cor.test(df$Trace,df$Retrace,method = "spearman")
+```
+```{r}
+ggscatter(df,x="Date",y="Diameter", color = "white", shape = 21, size = 5,
+          add = "reg.line", add.params = list(color = "green", fill = "lightgray", size = 2), conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "pearson",
+          xlab = "Date", ylab="Diameter (μm) of spheroid")+
+  stat_cor(aes(label = paste(..rr.label.., ..p.label.., sep = "~`,`~")), show.legend = FALSE, size=8, color = "green")+ 
+  theme(text = element_text(size=20),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = 'black'),
+        plot.background=element_rect(fill = "black",colour = "black"),
+        axis.line = element_line(colour = "white", size = 1),
+        axis.title = element_text(colour = "white"),
+        axis.text = element_text(color = "white"),
+        axis.ticks = element_line(colour ="white", size = 2),
+        legend.text = element_text(color = "white"))
+```
+

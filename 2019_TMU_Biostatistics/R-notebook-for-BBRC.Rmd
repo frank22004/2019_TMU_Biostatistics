@@ -1,0 +1,736 @@
+---
+title: "The Dual Effect of Fiber Density and Matrix Stiffness on A549 Tumor Multicellular
+  Migration"
+author: "Frank"
+date: "2024-10-15"
+output:
+  html_notebook: default
+  word_document: default
+---
+
+1.Loading `r version[['version.string']]` and following packages, Set up the connection:
+
+```{r}
+knitr::opts_chunk$set(echo = TRUE)
+library(RODBC)
+library(UsingR)
+library(ggpubr)
+library(ggplot2)
+library(ggsignif)
+library(dplyr)
+library(ggeasy)
+library(ggplot2)
+library(rstatix)
+library(stringr)
+library(fitdistrplus)
+library(knitr)
+library(multcomp)
+library(xlsx)
+library(grid)
+library(ggbreak)
+library(plotrix)
+library(ggpattern)
+library(gee)
+library(geepack)
+library(stats)
+library(scales)
+library(ggtext)
+```
+
+2. Set up driver info and database path and establish connection
+
+```{r access_path}
+DRIVERINFO <- "Driver={Microsoft Access Driver (*.mdb, *.accdb)};"
+MDBPATH <- "E:/OneDrive/文件/TMU-DESKTOP-SF2LD60-Surface-Go-Surface-Go.accdb"
+PATH <- paste0(DRIVERINFO, "DBQ=", MDBPATH)
+channel <- odbcDriverConnect(PATH)
+```
+
+
+3.  Load data into R dataframe
+
+```{r Load,  results="hide"}
+#Retrive the AFM measurement
+df <- sqlQuery(channel,"SELECT * FROM CollagenMembrane, AFM WHERE CollagenMembrane.Cantilever=AFM.No;", stringsAsFactors = FALSE)
+df_sample <- sqlQuery(channel,"SELECT * FROM Sample, Collagen_Membrane_Preparation WHERE Sample.Scaffolds=Collagen_Membrane_Preparation.識別碼;")
+df_dish <- sqlQuery(channel, "SELECT * FROM DishDepth;", stringsAsFactors = FALSE)
+df_AFM <- merge(df,df_sample,by.x="Experiment Sample",by.y = "識別碼",all.x = "TRUE")
+df_AFM
+
+#Retrive spheroid expansion
+df_spheroid <- sqlQuery(channel,"SELECT * FROM Spheroid, Cell WHERE Spheroid.Cell=Cell.識別碼;", stringsAsFactors = FALSE)
+df_spheroid <- merge(df_spheroid,df_sample,by.x="識別碼.1",by.y = "Cell",all.x = "TRUE")
+df_drug <- sqlQuery(channel, "SELECT * FROM Drug, Material WHERE Drug.Drug = Material.MaterialID;")
+df_data_withdrug <- merge(df_spheroid, df_drug,by.x = "GroupName", by.y = "ExperimentSample", all.x = "TRUE")
+df_data_withdrug
+
+#Retrive the fiber density
+df_col <- sqlQuery(channel,"SELECT * FROM Sample, SEM WHERE GroupName=ExperimentSample;", stringsAsFactors = FALSE)
+df_density <- merge(df_col,df_sample,by.x="GroupName",by.y = "GroupName",all.x = "TRUE")
+df_density$Status.y <- factor(df_density$Status.y, levels = c("UncompressedWithCell","CompressedWithCell"))
+df_density
+
+#Retrive the ki67 proliferation status
+df_if <- sqlQuery(channel,"SELECT * FROM IF;", stringsAsFactors = FALSE)
+df_data_ifraw <- merge(df_if,df_sample,by.x="GroupName",by.y = "GroupName",all.x = "TRUE")
+df_data_if <- subset.data.frame(df_data_ifraw, `Ingredient` == "CollagenInStretch_flat" & `Position` == "Periphery")
+df_data_if
+
+#Retrive the MMP2 activity
+df_MMP <- sqlQuery(channel,"SELECT * FROM Zymography;", stringsAsFactors = FALSE)
+df_MMP <- merge(df_MMP,df_sample,by.x="GroupName",by.y = "GroupName",all.x = "TRUE")
+df_MMP <- subset.data.frame(df_MMP, `Ingredient` != "CollagenInStretch_PBS" & `Type`=="Cell" & !is.na(`MMP2`))
+df_MMP
+```
+
+## This is a statistical notebook [BBRC](https://www.sciencedirect.com/journal/biochemical-and-biophysical-research-communications/publish/guide-for-authors) publication. It included the following 4 results which will be used for the publication. The following is the Results with synethesis matrix, comparison, and plot.
+
+## 1. Matrix Stiffness
+
+###  1.1 Table on the Data of Youngs Modulus
+        -   Normal Group (compresed) = 125 & 126 & 138 & 144 & 110 & 109
+        -   Normal Group (Uncompressed) = 127 & 128 & 234 & 108 & 107
+
+```{r AFM}
+df_data <- subset.data.frame( df_AFM,((`Ingredient` == "CollagenInStretch_flat"  & `Status.y`=="Compressed"& `Centrifuge (rpm)`!=3000)|(`Ingredient` == "CollagenInStretch_flat"  & `Status.y`=="Uncompressed")) | (`Experiment Sample`=="234"   | `Experiment Sample`== "125"| `Experiment Sample`== "126"| `Experiment Sample`== "138"| `Experiment Sample`== "144"| `Experiment Sample`== "127" | `Experiment Sample`== "128" | `Experiment Sample`== "107" | `Experiment Sample`== "108" | `Experiment Sample`== "109"| `Experiment Sample`== "110" | `Experiment Sample`== "287"  | `Experiment Sample`== "288" ) & (df_AFM$Yasix == 0 ) & !(is.na(df_AFM$YoungsModulus)))
+
+allStatus <- paste(df_data$Status.x,df_data$Status.y)
+df_data <- cbind(df_data,allStatus)
+
+#The stiffness change before and after spheroid culture
+df_data$culture <- ifelse((df_data$Status.y=="Compressed"|df_data$Status.y=="Uncompressed"),
+                          (ifelse(df_data$Status.x=="7days","Post","Pre")),"Spheroid")
+df_data$Status <- ifelse(df_data$Status.y=="Compressed","Compressed",
+                         ifelse(df_data$Status.y=="Uncompressed","Uncompressed",
+                                ifelse(df_data$Status.y=="UncompressedWithCell","Uncompressed",
+                                       ifelse(df_data$Status.y=="CompressedWithCell","Compressed",""))))
+df_data$Status <- factor(df_data$Status, levels = c("Uncompressed","Compressed"))
+
+# Arrange the test the 7 culture differences
+df_data$culture <- factor(df_data$culture,levels = c("Pre","Post","Spheroid"))
+df_data$Status <- factor(df_data$Status, levels = c("Uncompressed","Compressed"))
+df_data$Status.y <- factor(df_data$Status.y, levels = c("Uncompressed","Compressed"))
+
+#Create Matrix
+SynthesisMatrix <- df_data %>%
+  group_by(culture, Status, allStatus) %>%
+  summarise(
+    count = sum(!is.na(`YoungsModulus`)),
+    N = n_distinct(`Experiment Sample`,na.rm = TRUE),
+    mean = mean(`YoungsModulus`, na.rm = TRUE),
+    sd = sd(`YoungsModulus`, na.rm = TRUE),
+    median = median(`YoungsModulus`, na.rm = TRUE),
+    IQR = IQR(`YoungsModulus`, na.rm = TRUE),
+    se = sd(`YoungsModulus`, na.rm = TRUE)/sqrt(count),
+    normality = shapiro.test(`YoungsModulus`)$p.value
+  )
+SynthesisMatrix
+```
+### 1.2 Comparison of Stiffness
+```{r stiff}
+pstat <- compare_means(`YoungsModulus` ~ allStatus,data = df_data, method = "kruskal.test")
+pstat
+```
+### 1.3 Posthoc analysis of stiffness
+
+```{r}
+#Paired compared to different status
+dun_all <- df_data %>%
+  group_by(culture) %>%
+  dunn_test(YoungsModulus ~ Status, p.adjust.method="bonferroni") %>%
+  add_xy_position(x="culture", group = "Status")
+
+dun_all$dollarsign <- ifelse(dun_all$p.adj<=0.0001,"$$$$",
+                         ifelse(dun_all$p.adj<=0.001,"$$$",
+                                ifelse(dun_all$p.adj<=0.01,"$$",
+                                       ifelse(dun_all$p.adj<=0.05,"$","ns"))))
+
+dun_all$andsign <- ifelse(dun_all$p.adj<=0.0001,"&&&&",
+                         ifelse(dun_all$p.adj<=0.001,"&&&",
+                                ifelse(dun_all$p.adj<=0.01,"&&",
+                                       ifelse(dun_all$p.adj<=0.05,"&","ns"))))
+dun_all
+
+#Paired compared to centrifugated compression
+dun <- df_data %>%
+  group_by(Status) %>%
+  dunn_test(YoungsModulus ~ culture, p.adjust.method="bonferroni") %>%
+  add_xy_position(x="culture", group = "Status")
+
+dun$andsign <- ifelse(dun$p.adj<=0.0001,"&&&&",
+                         ifelse(dun$p.adj<=0.001,"&&&",
+                                ifelse(dun$p.adj<=0.01,"&&",
+                                       ifelse(dun$p.adj<=0.05,"&","ns"))))
+dun
+```
+### 1.4 Boxplot (* vs within Same day; & vs Compressed)
+```{r fig.width = 10.4,fig.height = 4.3}
+# Original: fig.width = 5,fig.height = 5
+my_xlab <- c("Day 0","Day 7","with Spheroid \n for 7 days")
+windowsFonts(A = windowsFont("Times New Roman")) 
+
+stiffbox_plan <- ggboxplot(df_data,x="culture",y="YoungsModulus", width = 0.75, title = " ", fill = "Status", size = 1)+ 
+  scale_y_continuous(expand = c(0,0), breaks = seq(0,61,10),limits = c(0,61))+
+  scale_x_discrete(labels=my_xlab)+
+  rotate_x_text(angle = 0)+
+  labs( y="Young's modulus (kPa)", fill="ECM ")+
+  easy_center_title()+
+  theme_bw()+
+  border(size = 2)+
+  scale_fill_manual(
+    values = c("white","gray20"),name = "Collagen Construct",label=c("Uncompressed","Compressed"))+
+
+  theme(
+        axis.ticks = element_line(size = 1),
+        axis.ticks.length=unit(0.2, "cm"),
+        axis.text.y = element_text(size = 20, color = "black", face = "bold"),
+        axis.text.x = element_text(size = 18, face = "bold", color = "black",vjust = 0.5),
+        axis.title = element_text(size = 20, face = "bold"),
+        axis.title.x = element_blank(),
+        legend.text = element_text(size=18, face = "bold"),
+        legend.title = element_text(size=18, face = "bold"),
+        plot.subtitle = element_text(size = 16, face = "bold"),
+        plot.title = element_blank(),
+        text = element_text(family ="A"),
+        legend.position = c(0.12,0.88),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        legend.key = element_rect(colour = NA, fill = NA),
+        legend.background = element_rect(fill='transparent') #transparent legend bg
+        )+
+    stat_pvalue_manual(dun,hide.ns = TRUE, size = 6.5, tip.length = 0, bracket.size = 1, step.increase = 0.01, label = "{andsign}",family = "A")+
+  stat_pvalue_manual(dun_all,hide.ns = TRUE, size = 10, tip.length = 0, bracket.size = 1, step.increase = 0.01, remove.bracket = TRUE,family = "A")
+
+
+stiffbox_plan
+```
+### 1.5 PPT
+```{r fig.width = 6,fig.height = 5}
+my_xlab <- c("Day 0","Day 7","with Spheroid \n for 7 days")
+windowsFonts(A = windowsFont("Times New Roman")) 
+
+ggboxplot(df_data,x="culture",y="YoungsModulus", width = 0.75, title = " ", fill = "Status", size = 0.6)+ 
+  scale_y_continuous(expand = c(0,0), breaks = seq(0,61,10),limits = c(0,61))+
+  scale_x_discrete(labels=my_xlab)+
+  rotate_x_text(angle = 0)+
+  labs( y="Young's modulus (kPa)", fill="ECM ")+
+  easy_center_title()+
+  theme_bw()+
+  border(size = 2)+
+  scale_fill_manual(
+    values = c("#00bfc4","#f8766d"),name = "Collagen Construct",label=c("Uncompressed","Compressed"))+
+  theme(
+        axis.ticks = element_line(size = 1),
+        axis.ticks.length=unit(0.2, "cm"),
+        axis.text.y = element_text(size = 20, color = "black", face = "bold"),
+        axis.text.x = element_text(size = 18, face = "bold", color = "black",vjust = 0.5),
+        axis.title = element_text(size = 20, face = "bold"),
+        axis.title.x = element_blank(),
+        legend.text = element_text(size=12, face = "bold"),
+        legend.title = element_text(size=12, face = "bold"),
+        plot.subtitle = element_text(size = 16, face = "bold"),
+        plot.title = element_blank(),
+        text = element_text(family ="A"),
+        legend.position = c(0.15,0.91),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        legend.key = element_rect(colour = NA, fill = NA),
+        legend.background = element_rect(fill='transparent'), #transparent legend bg
+        )+
+    stat_pvalue_manual(dun,hide.ns = TRUE, size = 6, tip.length = 0, bracket.size = 1, step.increase = 0.01, label = "{andsign}",family = "A")+
+  stat_pvalue_manual(dun_all,hide.ns = TRUE, size = 10, tip.length = 0, bracket.size = 1, step.increase = 0.01, remove.bracket = TRUE,family = "A")
+```
+
+
+
+Save as TIFF
+```{r}
+tiff("stiffbox_plan.tiff",units = "in", width = 10.4,height = 4.3 , res = 1200)
+stiffbox_plan
+dev.off()
+```
+
+## 2. Thickness
+
+### 2.1 Table of Thickness
+```{r}
+thickMatrix <- df_data %>%
+  group_by(culture, Status, allStatus) %>%
+  summarise(
+    count = sum(!is.na(Thickness)),
+    N = n_distinct(`Experiment Sample`,na.rm = TRUE),
+    mean = mean(Thickness, na.rm = TRUE),
+    sd = sd(Thickness, na.rm=TRUE),
+    median = median(Thickness, na.rm=TRUE),
+    IQR = IQR(Thickness, na.rm = TRUE),
+    se = sd/sqrt(count),
+    normality = shapiro.test(`YoungsModulus`)$p.value
+  )
+thickMatrix
+```
+
+### 2.2 Comparison of thickness
+
+```{r}  
+pstat <- compare_means(`Thickness` ~ allStatus,data = df_data, method = "kruskal.test")
+pstat
+```
+
+
+### 2.3 Post-hoc for thickness comparison
+
+```{r}
+thi <- df_data %>%
+  dunn_test(Thickness ~ allStatus, p.adjust.method="holm")%>%
+  add_xy_position(x="Status.y", fun = "mean_se", dodge = 0.7, step.increase = 0.05)
+thi$dollarsign <- ifelse(thi$p.adj<=0.0001,"$$$$",
+                         ifelse(thi$p.adj<=0.001,"$$$",
+                                ifelse(thi$p.adj<=0.01,"$$",
+                                       ifelse(thi$p.adj<=0.05,"$","ns"))))
+
+thi$andsign <- ifelse(thi$p.adj<=0.0001,"&&&&",
+                         ifelse(thi$p.adj<=0.001,"&&&",
+                                ifelse(thi$p.adj<=0.01,"&&",
+                                       ifelse(thi$p.adj<=0.05,"&","ns"))))
+
+thi
+```
+
+
+## 3. Spheroid Expansion
+
+### 3.1 Table on Spheroid Expansion
+```{r}
+AllMatrix <- df_data_withdrug[df_data_withdrug$CulturedDate <=11 & 
+                           df_data_withdrug$SpheroidDensity == 1000 & 
+                           df_data_withdrug$Status != "Contaminated"&
+                           df_data_withdrug$Ingredient=="CollagenInStretch_flat"&
+                           df_data_withdrug$AbandonSpheroid==FALSE &
+                           df_data_withdrug$day5Ratio!=0 &
+                             is.na(df_data_withdrug$Drug) &
+                           !is.na(df_data_withdrug$day5Ratio),]%>%
+  group_by(`Drug`,`CulturedDate`,`Condition`,`Status`,`SpheroidDensity`,`Ingredient`) %>%
+  summarise(
+    n = n(),
+    N = n_distinct(`Group Name.x`,na.rm = TRUE),
+    mean = mean(`day5Ratio`, na.rm = TRUE),
+    mean2 = mean(`day5Ratio`, na.rm = TRUE),
+    sd = sd(`day5Ratio`, na.rm = TRUE),
+    median = median(`day5Ratio`, na.rm = TRUE),
+    IQR = IQR(`day5Ratio`, na.rm = TRUE),
+    se = sd(`day5Ratio`, na.rm = TRUE)/sqrt(n)
+  )
+colnames(AllMatrix)[which(names(AllMatrix)=="mean2")]<-c("day5Ratio")
+AllMatrix
+```
+
+### 3.2 List the spheroid growth
+```{r}
+glmspheroid <- df_data_withdrug[df_data_withdrug$CulturedDate <=11 &
+                             df_data_withdrug$SpheroidDensity == 1000 & 
+                             df_data_withdrug$Condition == "Spheroid" & 
+                             df_data_withdrug$Status != "Contaminated" &
+                             df_data_withdrug$Ingredient=="CollagenInStretch_flat" & 
+                             df_data_withdrug$AbandonSpheroid==FALSE &
+                             is.na(df_data_withdrug$Drug) &
+                             df_data_withdrug$day5Ratio!=0 & 
+                             !is.na(df_data_withdrug$day5Ratio),]
+head(glmspheroid)
+```
+
+### 3.3 Lineplot - spheroid on ECM
+```{r  fig.width = 6,fig.height = 3.8}
+days <- c(1,2,3,4,5,6,7)
+my_xlab <- paste(days)
+windowsFonts(A = windowsFont("Times New Roman")) 
+
+growth <- ggplot(glmspheroid,aes(x=CulturedDate, y=day5Ratio, group=SpheroidDensity, shape=Status,color=Status))+
+  geom_point(size=1)+
+  geom_line(aes(group=interaction(Spheroid,Status)),size=0.2,linetype="dotted")+
+  geom_point(mapping = aes(x = CulturedDate, y = mean), data = AllMatrix, size=5)+
+  geom_line(mapping = aes(x = CulturedDate, y = mean, group=Status,linetype=Status), data = AllMatrix, size=1.5, )+
+  theme_bw()+
+  border(size = 2)+
+  labs( y="Expansion Ratio (<sup>Φ<sub>i</sub></sup>/<sub>Φ<sub>1</sub></sub>)", x="Cultured Day")+
+  scale_x_continuous(labels=my_xlab, breaks = seq(5,11,1))+
+  scale_color_manual(values = c("black","grey40"),
+                     name = "Collagen Construct",
+                     label=c("Compressed","Uncompressed"))+
+  scale_shape_discrete(name = "Collagen Construct",label=c("Compressed","Uncompressed"))+
+  scale_linetype_discrete(name = "Collagen Construct",label=c("Compressed","Uncompressed"))+
+  theme(
+        axis.ticks = element_line(size = 1, color = "black"),
+        axis.ticks.length=unit(0.4, "cm"),
+        axis.text = element_text(size = 20, color = "black", face = "bold"),
+        axis.title = element_text(size = 20, face = "bold"),
+        legend.position = c(0.24,0.81),
+        legend.text = element_text(size=18, face = "bold"),
+        legend.title = element_text(size=18, face = "bold"),
+        text = element_text(family ="A"),
+        plot.title = element_text(size = 25, face = "bold"),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.title.y = element_markdown())+
+  easy_center_title()
+
+growth
+```
+### 3.4 PPT
+```{r fig.width = 6,fig.height = 6}
+days <- c(1,2,3,4,5,6,7)
+my_xlab <- paste(days)
+windowsFonts(A = windowsFont("Times New Roman")) 
+
+ggplot(glmspheroid,aes(x=CulturedDate, y=day5Ratio, group=SpheroidDensity, shape=Status,color=Status))+
+  geom_point(size=1)+
+  geom_line(aes(group=interaction(Spheroid,Status)),size=0.2,linetype="dotted")+
+  geom_point(mapping = aes(x = CulturedDate, y = mean), data = AllMatrix, size=5)+
+  geom_line(mapping = aes(x = CulturedDate, y = mean, group=Status,linetype=Status), data = AllMatrix, size=1.5, )+
+  ylim(c(1,3.5))+
+  theme_bw()+
+  border(size = 2)+
+  labs( y="Expansion Ratio (<sup>Φ<sub>i</sub></sup>/<sub>Φ<sub>1</sub></sub>)", x="Cultured Day")+
+  scale_x_continuous(labels=my_xlab, breaks = seq(5,11,1))+
+#  scale_color_manual(name = "Collagen Construct",
+#                     label=c("Compressed","Uncompressed"))+
+  scale_color_discrete(name = "Collagen Construct",label=c("Compressed","Uncompressed"))+
+  scale_shape_discrete(name = "Collagen Construct",label=c("Compressed","Uncompressed"))+
+  scale_linetype_discrete(name = "Collagen Construct",label=c("Compressed","Uncompressed"))+
+  theme(
+        axis.ticks = element_line(size = 1, color = "black"),
+        axis.ticks.length=unit(0.4, "cm"),
+        axis.text = element_text(size = 20, color = "black", face = "bold"),
+        axis.title = element_text(size = 20, face = "bold"),
+        legend.position = "top",
+        legend.text = element_text(size=16, face = "bold"),
+        legend.title = element_text(size=16, face = "bold"),
+        text = element_text(family ="A"),
+        legend.key = element_blank(),
+        plot.title = element_text(size = 25, face = "bold"),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.title.y = element_markdown())+
+  easy_center_title()
+```
+
+
+Save as TIFF
+```{r}
+tiff("growth_collagenOnly.tiff", units = "in", width = 6,height = 3.8 , res = 1200)
+growth
+dev.off()
+```
+
+## 4. MMP Zymogrphy
+
+### 4.1 Table on the Zymography
+
+```{r}
+SynthesisMatrix_MMP <- df_MMP %>%
+  group_by(`Type`,`Ingredient`,`Status`) %>%
+  summarise(
+    count = sum(!is.na(`MMP2`)),
+    N = n_distinct(`GroupName`,na.rm = TRUE),
+    mean = mean(`MMP2`, na.rm = TRUE),
+    sd = sd(`MMP2`, na.rm = TRUE),
+    median = median(`MMP2`, na.rm = TRUE),
+    IQR = IQR(`MMP2`, na.rm = TRUE),
+    se = sd(`MMP2`, na.rm = TRUE)/sqrt(count),
+    normality = shapiro.test(`MMP2`)$p.value
+  )
+
+SynthesisMatrix_MMP
+```
+
+### 4.2 Comparison to Zymography
+
+```{r}  
+t <- compare_means(MMP2 ~ Status, data = df_MMP, method = "t.test")
+t
+```
+
+### 4.3 Barplot
+```{r fig.width = 4,fig.height = 4}
+windowsFonts(A = windowsFont("Times New Roman")) 
+
+# Make zeros print as "0" always
+prettyZero <- function(l){
+    max.decimals = max(nchar(str_extract(l, "\\.[0-9]+")), na.rm = T)-1
+    lnew = formatC(l, replace.zero = T, zero.print = "0",
+        digits = max.decimals, format = "f", preserve.width=T)
+    return(lnew)
+}
+
+MMP <- ggbarplot(data = df_MMP, x="Status",y="MMP2", title = "MMP activity", size = 1.4, 
+                 add = c("mean_se"), error.plot = "upper_errorbar", width = 0.6, 
+                 fill = "Status", add.params = list(size = 1.5))+
+  geom_point(mapping = aes(x = Status, y = MMP2), data = df_MMP, size=5, shape=21)+
+  scale_y_continuous(expand = c(0,0.005),limits = c(0,2),labels = prettyZero)+
+  scale_x_discrete(labels=c("Uncompressed","Compressed"))+
+  labs(y="MMP2 activity \n (intensity fold change to uncompressed)")+
+  stat_pvalue_manual(t,hide.ns = TRUE, size = 10,tip.length = 0, step.increase = 0.1, label = "p.signif", y.position = 1.8,family = "A")+
+  scale_fill_manual(values = c("white","gray70"))+
+  theme_bw()+
+  border(size = 1.8)+
+  easy_center_title()+  
+  theme(axis.ticks.length=unit(0.2, "cm"),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.text.y = element_text(size = 20, color = "black", face = "bold"),
+        axis.text.x = element_text(size = 15, color = "black", face = "bold"),
+        axis.title = element_text(size = 15, face = "bold"),
+        legend.text = element_text(size=18, face = "bold"),
+        legend.title = element_text(size=18,face = "bold"),
+        plot.subtitle = element_text(size = 20, face = "bold",hjust = 0.5),
+        plot.title = element_blank(),
+        text = element_text(family ="A"),
+        legend.position = "none",
+        axis.ticks = element_line(size = 1, colour = "black"),
+        axis.title.x = element_blank()
+        )
+MMP
+```
+
+### 4.4 PPT
+```{r fig.width = 5,fig.height = 3.7}
+windowsFonts(A = windowsFont("Times New Roman")) 
+
+# Make zeros print as "0" always
+prettyZero <- function(l){
+    max.decimals = max(nchar(str_extract(l, "\\.[0-9]+")), na.rm = T)-1
+    lnew = formatC(l, replace.zero = T, zero.print = "0",
+        digits = max.decimals, format = "f", preserve.width=T)
+    return(lnew)
+}
+
+ggbarplot(data = df_MMP, x="Status",y="MMP2", title = "MMP activity", size = 1.4, 
+                 add = c("mean_se"), error.plot = "upper_errorbar", width = 0.6, 
+                 fill = "Status", add.params = list(size = 1.5))+
+  geom_point(mapping = aes(x = Status, y = MMP2), data = df_MMP, size=5, shape=21)+
+  scale_y_continuous(expand = c(0,0.005),limits = c(0,2),labels = prettyZero)+
+  scale_x_discrete(labels=c("Uncompressed","Compressed"))+
+  labs(y="MMP2 activity \n (intensity fold change \n to uncompressed)")+
+  stat_pvalue_manual(t,hide.ns = TRUE, size = 10,tip.length = 0, step.increase = 0.1, label = "p.signif", y.position = 1.8,family = "A")+
+#  scale_fill_manual(values = c("white","gray70"))+
+  scale_fill_manual(
+    values = c("#00bfc4","#f8766d"),name = "Collagen Construct",label=c("Uncompressed","Compressed"))+
+  labs(subtitle = get_test_label(t_test(`MMP2` ~ Status,data =df_MMP), detailed = T))+
+  theme_bw()+
+  border(size = 1.8)+
+  easy_center_title()+  
+  theme(axis.ticks.length=unit(0.2, "cm"),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.text.y = element_text(size = 20, color = "black", face = "bold"),
+        axis.text.x = element_text(size = 18, color = "black", face = "bold"),
+        axis.title = element_text(size = 15, face = "bold"),
+        legend.text = element_text(size=18, face = "bold"),
+        legend.title = element_text(size=18,face = "bold"),
+        plot.subtitle = element_text(size = 15, face = "bold",hjust = 0.5),
+        plot.title = element_blank(),
+        text = element_text(family ="A"),
+        legend.position = "none",
+        axis.ticks = element_line(size = 1, colour = "black"),
+        axis.title.x = element_blank()
+        )
+```
+
+
+Save as TIFF
+```{r}
+tiff("MMP2.tiff", units = "in", width = 4,height = 4 , res = 1200)
+MMP
+dev.off()
+```
+
+## 5. Ki67 Proliferation
+
+### 5.1 Table on ki67
+
+```{r}
+#Rearrange the order
+df_data_if$Status <- factor(df_data_if$Status, levels = c("UncompressedWithCell","CompressedWithCell"))
+
+SynthesisMatrix <- df_data_if %>%
+  group_by(`Ingredient`,`Status`) %>%
+  summarise(
+    count = sum(!is.na(`Ratio`)),
+    N = n_distinct(`SpheroidName`,na.rm = TRUE),
+    mean = mean(`Ratio`, na.rm = TRUE),
+    sd = sd(`Ratio`, na.rm = TRUE),
+    median = median(`Ratio`, na.rm = TRUE),
+    IQR = IQR(`Ratio`, na.rm = TRUE),
+    se = sd(`Ratio`, na.rm = TRUE)/sqrt(count),
+    normality = shapiro.test(`Ratio`)$p.value
+  )
+
+SynthesisMatrix
+```
+
+### 5.2 Comparison to ki67
+
+```{r}  
+compare_means(`Ratio` ~ `Status`, data = df_data_if, method = "t.test")
+```
+
+### 5.3 Boxplot
+```{r fig.width = 5,fig.height = 3.5}
+windowsFonts(A = windowsFont("Times New Roman")) 
+
+ki67 <- ggboxplot(data = df_data_if, x="Status",y="Ratio", fill = "Status", title = "Proliferation by ki67 staining",size = 1)+
+  scale_y_continuous(expand = c(0,0),labels = percent, limits = c(0,0.7))+
+  scale_x_discrete(labels=c("Uncompressed","Compressed"))+
+  labs(y="% of nucleus <br> ( <sup>ki67+</sup> / <sub>Hoechst33342+</sub> )")+
+  scale_fill_manual(values = c("white","gray20"))+
+  theme_bw()+
+  border(size = 2)+
+  easy_center_title()+  
+  theme(axis.ticks.length=unit(0.2, "cm"),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.text.y = element_text(size = 18, color = "black", face = "bold"),
+        axis.text.x = element_text(size = 18, color = "black", face = "bold"),
+        axis.title = element_text(size = 18, face = "bold"),
+        legend.text = element_text(size=18, face = "bold"),
+        legend.title = element_text(size=18,face = "bold"),
+        plot.subtitle = element_text(size = 20, face = "bold",hjust = 0.5),
+        plot.title = element_blank(),
+        text = element_text(family ="A"),
+        legend.position = "none",
+        axis.ticks = element_line(size = 1, colour = "black"),
+        axis.title.x = element_blank(),
+        axis.title.y = element_markdown()
+        )
+ki67
+```
+### 5.4 PPT
+```{r fig.width = 5,fig.height = 3.5}
+windowsFonts(A = windowsFont("Times New Roman")) 
+
+ggboxplot(data = df_data_if, x="Status",y="Ratio", fill = "Status", title = "Proliferation by ki67 staining",size = 1)+
+  scale_y_continuous(expand = c(0,0),labels = percent, limits = c(0,0.7))+
+  scale_x_discrete(labels=c("Uncompressed","Compressed"))+
+  labs(y="% of nucleus <br> ( <sup>ki67+</sup> / <sub>Hoechst33342+</sub> )")+
+  labs(subtitle = get_test_label(t_test(`Ratio` ~ Status,data =df_data_if), detailed = T))+
+#  scale_fill_manual(values = c("white","gray20"))+
+  theme_bw()+
+  border(size = 2)+
+  easy_center_title()+  
+  theme(axis.ticks.length=unit(0.2, "cm"),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.text.y = element_text(size = 18, color = "black", face = "bold"),
+        axis.text.x = element_text(size = 18, color = "black", face = "bold"),
+        axis.title = element_text(size = 18, face = "bold"),
+        legend.text = element_text(size=18, face = "bold"),
+        legend.title = element_text(size=18,face = "bold"),
+        plot.subtitle = element_text(size = 15, face = "bold",hjust = 0.5),
+        plot.title = element_blank(),
+        text = element_text(family ="A"),
+        legend.position = "none",
+        axis.ticks = element_line(size = 1, colour = "black"),
+        axis.title.x = element_blank(),
+        axis.title.y = element_markdown()
+        )
+```
+
+
+
+Save as TIFF
+```{r}
+tiff("ki67.tiff", units = "in", width = 5,height = 3.5 , res = 1200)
+ki67
+dev.off()
+```
+
+## 6. Fiber Density
+
+### 6.1 Table on Fiber Density
+```{r}
+df_density <- df_density[df_density$Ingredient == "CollagenInStretch_flat",]
+
+SynthesisMatrix_density <- df_density %>%
+  group_by(`Status.y`,`Ingredient`) %>%
+  summarise(
+    count = sum(!is.na(`AreaFriction`)),
+    mean = mean(`AreaFriction`, na.rm = TRUE),
+    sd = sd(`AreaFriction`, na.rm = TRUE),
+    median = median(`AreaFriction`, na.rm = TRUE),
+    IQR = IQR(`AreaFriction`, na.rm = TRUE),
+    se = sd(`AreaFriction`, na.rm = TRUE)/sqrt(count),
+    normality = shapiro.test(`AreaFriction`)$p.value
+  )
+
+SynthesisMatrix_density
+```
+
+### 6.2 Comparison to Fiber density
+
+```{r}  
+fiber <- df_density %>%
+  t_test(`AreaFriction` ~ Status.y)%>%
+  add_xy_position(fun = "mean_se", dodge = 0.8,group ="Ingredient",x = "Status.y")
+
+fiber$p.signif <- ifelse(fiber$p <=0.0001,"****",
+                         ifelse(fiber$p<=0.001,"***",
+                                ifelse(fiber$p<=0.01,"**",
+                                       ifelse(fiber$p<=0.05,"*","ns"))))
+
+fiber
+```
+
+### 6.3 Boxplot
+```{r fig.width = 4.5,fig.height = 2.5}
+#Add the sample size
+my_xlab <- c("Uncompressed","Compressed")
+windowsFonts(A = windowsFont("Times New Roman")) 
+
+# Use prefix and suffix to create your own variants
+french_percent <- label_percent(
+  decimal.mark = ",",
+  suffix = ""
+)
+
+
+fiberdensity <- ggboxplot(data = df_density, x="Status.y",y="AreaFriction", title = "Density",size = 0.6, fill = "Status.y")+
+  scale_y_continuous(expand = c(0,0.005),limits = c(0,0.8),labels = french_percent)+
+  labs(y="Fiber Density (%)", x = "collagen concentration")+
+  stat_pvalue_manual(fiber,hide.ns = TRUE, size = 10, tip.length = 0, bracket.size = 1, step.increase = 0.01, family = "A", y.position = 0.69)+
+  scale_x_discrete(labels=my_xlab)+
+  scale_fill_manual(
+    values = c("white","gray24"),name = "Collagen Construct", label=c("Uncompressed","Compressed"))+
+  theme_bw()+
+  border(size = 2)+
+  easy_center_title()+  
+  theme(axis.ticks.length=unit(0.2, "cm"),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.text.y = element_text(size = 20, color = "black", face = "bold"),
+        axis.text.x = element_text(size = 20, color = "black", face = "bold"),
+        axis.ticks.length.x = unit(0, "cm"),
+        axis.title = element_text(size = 20, face = "bold"),
+        legend.text = element_text(size=16, face = "bold"),
+        legend.title = element_text(size=16,face = "bold"),
+        plot.subtitle = element_text(size = 20, face = "bold",hjust = 0.5),
+        plot.title = element_blank(),
+        text = element_text(family ="A"),
+        legend.position = "none",
+        axis.ticks = element_line(size = 1, colour = "black"),
+        axis.title.x = element_blank()
+        )
+
+fiberdensity
+```
+
+Save as TIFF
+```{r}
+tiff("fiberdensity.tiff", units = "in", width = 5,height = 3 , res = 1200)
+fiberdensity
+dev.off()
+```
+
+## Close and remove channel
+
+```{r}
+close(channel)
+```

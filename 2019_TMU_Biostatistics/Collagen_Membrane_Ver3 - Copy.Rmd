@@ -1,0 +1,528 @@
+---
+title: "Collagen Membrane on optimization"
+author: "Frank"
+date: "2022-09-25"
+output:
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 1. Configure environment and include the data
+
+The analysis is powered by `r version[['version.string']]`. It requires the following packages:
+
+```{r libaray, message=FALSE}
+library(readxl)
+library(dplyr)
+library(rstatix)
+library(ggpubr)
+library(ggplot2)
+library(ggsignif)
+library(ggeasy)
+library(PMCMR)
+library(PMCMRplus)
+library(fitdistrplus)
+```
+
+Read the data from the excel files
+
+```{r excel, echo=FALSE}
+collagen <- read_excel("E:/OneDrive/Tokyo Metropolitan University/Collagen Membrane/Collagen Membrane.xlsx", sheet = 2)
+preparation <- read_excel("E:/OneDrive/Tokyo Metropolitan University/Collagen Membrane/Collagen Membrane.xlsx", sheet = 1)
+collagen_compression <- merge(collagen,preparation,by="Group Name", all.x = TRUE)
+head(collagen_compression,5)
+```
+
+```{r subgroup}
+#ph7rpm3000centrifuge10 <- subset.data.frame(collagen_compression,`Buffer pH` == 7.7 & `Centrifuge (rpm)` == 3000 & `Centrifuge Time (min)` == 10)
+#ph9rpm3000centrifuge10 <- subset.data.frame(collagen_compression,`Buffer pH` == 9 & `Centrifuge (rpm)` == 3000 & `Centrifuge Time (min)` == 10)
+#ph7rpm3000centrifuge20 <- subset.data.frame(collagen_compression,`Buffer pH` == 7.7 & `Centrifuge (rpm)` == 3000 & `Centrifuge Time (min)` == 20)
+#ph9rpm3000centrifuge20 <- subset.data.frame(collagen_compression,`Buffer pH` == 9 & `Centrifuge (rpm)` == 3000 & `Centrifuge Time (min)` == 20)
+#ph7force500centrifuge10 <- subset.data.frame(collagen_compression,`Buffer pH` == 7.7 & `Centrifuge (rpm)` == 2116 & `Centrifuge Time (min)` == 10)
+#ph9force500centrifuge10 <- subset.data.frame(collagen_compression,`Buffer pH` == 9 & `Centrifuge (rpm)` == 2116 & `Centrifuge Time (min)` == 10)
+#ph7force500centrifuge20 <- subset.data.frame(collagen_compression,`Buffer pH` == 7.7 & `Centrifuge (rpm)` == 2116 & `Centrifuge Time (min)` == 20)
+#ph9force500centrifuge20 <- subset.data.frame(collagen_compression,`Buffer pH` == 9 & `Centrifuge (rpm)` == 2116 & `Centrifuge Time (min)` == 20)
+```
+
+1.  Mean over the group
+
+```{r}
+meanAll <- aggregate.data.frame(collagen_compression[c("Thickness (μm)")],list(
+  Group = collagen_compression$Group,
+  Status = collagen_compression$Status, 
+  pH = collagen_compression$`Buffer pH`, 
+  Quantity = collagen_compression$`Total solution quantity (ml)`, 
+  Centrifuge = collagen_compression$`Centrifuge (rpm)`, 
+  CentrifugeTime =collagen_compression$`Centrifuge Time (min)`),mean)
+meanAll
+```
+
+## Synthesis Matrix of the Compression Ratio
+
+```{r}
+Data <- subset.data.frame(collagen_compression,`Status` != "Uncompressed" & "Centrifuge Time (min)" != 5 & `Centrifuge (rpm)` == 3000 & `Centrifuge Time (min)` == 10 & `Person`=="Frank") %>%
+  group_by(across(all_of(c("Group Name","Status","Buffer pH","Total solution quantity (ml)","Centrifuge (rpm)","Centrifuge Time (min)")))) %>%
+  summarise(
+    count = n(),
+    mean = round(mean(`Compressed Ratio`, na.rm = TRUE),3),
+    sd = sd(`Compressed Ratio`, na.rm = TRUE),
+    median = median(`Compressed Ratio`, na.rm = TRUE),
+    IQR = IQR(`Compressed Ratio`, na.rm = TRUE)
+  )
+Data
+```
+
+2.  SD over the group
+
+```{r}
+sdAll <- aggregate.data.frame(collagen_compression[c("Thickness (μm)")],list(
+  Group = collagen_compression$Group,
+  Status = collagen_compression$Status, 
+  pH = collagen_compression$`Buffer pH`, 
+  Quantity = collagen_compression$`Total solution quantity (ml)`, 
+  Centrifuge = collagen_compression$`Centrifuge (rpm)`, 
+  CentrifugeTime =collagen_compression$`Centrifuge Time (min)`),sd)
+sdAll
+```
+
+3.  Merge mean and sd
+
+```{r}
+meansd <- merge(meanAll,sdAll,by="Group")
+meansd <- rename(meansd,c("mean"="Thickness (μm).x","SD"="Thickness (μm).y"))
+meansd
+```
+
+4.  Observe the compression ratio
+
+    ```{r}
+    collagen_compression_ratio <- subset.data.frame(collagen_compression,Status != "Uncompressed" & Person != "Oyamasan")
+    CompressedRatio <- aggregate.data.frame(
+      collagen_compression_ratio[c("Compressed Ratio")],
+      list(
+        Person = collagen_compression_ratio$Person,
+        Group = collagen_compression_ratio$Group,
+        Status = collagen_compression_ratio$Status, 
+        pH = collagen_compression_ratio$`Buffer pH`, 
+        Quantity = collagen_compression_ratio$`Total solution quantity (ml)`, 
+        Centrifuge = collagen_compression_ratio$`Centrifuge (rpm)`, 
+        CentrifugeTime = collagen_compression_ratio$`Centrifuge Time (min)`),
+      mean)
+    CompressedRatio
+    ```
+
+5.  Examine the distribution of compression ration
+
+    ```{r}
+    shapiro.test(subset.data.frame(CompressedRatio,Status=="Compressed")$`Compressed Ratio`)
+    ```
+
+6.  The plot of the compressed
+
+    ```{r}
+    ggplot(subset.data.frame(CompressedRatio,Status=="Compressed"), aes(x=Quantity, y=`Compressed Ratio`))+ 
+      geom_jitter(position=position_jitter(0.2), cex=1.2) + 
+      stat_summary(fun.y=mean, geom="point", shape=18, size=3, color="red")
+    ```
+
+7.  Buffer pH 7.7, 2116 rpm (500 g force), and 20 mins centrifuge times
+
+    ```{r}
+    aggregate.data.frame(
+      ph7force500centrifuge20[c("Thickness (μm)")],
+      list(Operator = ph7force500centrifuge20$Person,
+           Status = ph7force500centrifuge20$Status,
+           Quantity = ph7force500centrifuge20$`Total solution quantity (ml)`),
+      mean)
+    ```
+
+8.  Buffer pH 9, 2116 rpm (500 g force), and 20 mins centrifuge times
+
+    ```{r}
+    aggregate.data.frame(
+      ph9force500centrifuge20[c("Thickness (μm)")],
+      list(Operator = ph9force500centrifuge20$Person,
+           Status = ph9force500centrifuge20$Status,
+           Quantity = ph9force500centrifuge20$`Total solution quantity (ml)`),
+      mean)
+    ```
+
+## 2. One-way ANOVA test
+
+```{r ano}
+colmembrane <- aov(`Thickness (μm)` ~ Group, data = subset.data.frame(collagen_compression, Person == "Frank"))
+summary(colmembrane)
+```
+
+```{r}
+tukeycolmembrane <- tukey_hsd(colmembrane)
+tukeycolmembrane
+selected <- subset.data.frame(tukeycolmembrane,p.adj.signif != "ns")
+selected
+```
+
+```{r}
+#ggboxplot(collagen_compression, x = "Group", y= "Thickness (μm)", color="Status", add = "jitter", xlab = "Test Date")
+ggbarplot(meansd, x = "Group", y= "mean", fill = "Status")+ 
+   geom_bar(stat="identity", position=position_dodge())+
+   geom_errorbar(aes(ymin=mean-SD, ymax=mean+SD), width=.2,
+                 position=position_dodge(.9))+
+   stat_pvalue_manual(
+     selected,
+     label = "p.adj.signif",
+     y.position = seq(from=900, to=1809, by=10)
+   )
+```
+
+## Examine the Centrifuge 3000 rpm, 10 min at different pH buffer and quantity
+
+```{r}
+centrifuge3000rpm10min <- subset.data.frame(collagen_compression, `Centrifuge (rpm)` == 3000 & `Centrifuge Time (min)` == 10 & Person == "Frank")
+colnames(centrifuge3000rpm10min)[which(names(centrifuge3000rpm10min)=="Buffer pH")] <- "pH"
+colnames(centrifuge3000rpm10min)[which(names(centrifuge3000rpm10min)== "Total solution quantity (ml)")] <- "Quantity"
+colnames(centrifuge3000rpm10min)[which(names(centrifuge3000rpm10min)== "Compressed Ratio")] <- "Ratio"
+colnames(centrifuge3000rpm10min)[which(names(centrifuge3000rpm10min)== "Centrifuge (rpm)")] <- "Centrifuge"
+colnames(centrifuge3000rpm10min)[which(names(centrifuge3000rpm10min)== "Centrifuge Time (min)")] <- "CentrifugeTime"
+colnames(centrifuge3000rpm10min)[which(names(centrifuge3000rpm10min)== "Group Name")] <- "Condition"
+head(centrifuge3000rpm10min,5)
+```
+
+check the normality
+
+```{r}
+shapiro.test(subset.data.frame(centrifuge3000rpm10min,`pH` == 7.7 & `Quantity` == 1 & `Status` == "Compressed")$`Ratio`)
+shapiro.test(subset.data.frame(centrifuge3000rpm10min,`pH` == 7.7 & `Quantity` == 1 & `Status` == "After7DaysCompressed")$`Ratio`)
+shapiro.test(subset.data.frame(centrifuge3000rpm10min,`pH` == 7.7 & `Quantity` == 1.5 & `Status` == "Compressed")$`Ratio`)
+shapiro.test(subset.data.frame(centrifuge3000rpm10min,`pH` == 7.7 & `Quantity` == 1.5 & `Status` == "After7DaysCompressed")$`Ratio`)
+shapiro.test(subset.data.frame(centrifuge3000rpm10min,`pH` == 9 & `Quantity` == 1 & `Status` == "Compressed")$`Ratio`)
+shapiro.test(subset.data.frame(centrifuge3000rpm10min,`pH` == 9 & `Quantity` == 1 & `Status` == "After7DaysCompressed")$`Ratio`)
+shapiro.test(subset.data.frame(centrifuge3000rpm10min,`pH` == 9 & `Quantity` == 1.5 & `Status` == "Compressed")$`Ratio`)
+shapiro.test(subset.data.frame(centrifuge3000rpm10min,`pH` == 9 & `Quantity` == 1.5 & `Status` == "After7DaysCompressed")$`Ratio`)
+```
+
+Examine the comparison study
+
+```{r}
+pstat <- compare_means(`Ratio` ~ `Group`, data = centrifuge3000rpm10min, method = "kruskal.test")
+pstat
+```
+
+```{r}
+dun <- centrifuge3000rpm10min %>%
+  group_by(Quantity,pH) %>%
+  dunn_test(Ratio ~ Status) %>%
+  add_xy_position(x="Status", fun = "mean_sd", dodge = 0.8)
+dun
+```
+
+```{r}
+ggbarplot(Data, x = "Status", y= "mean", fill ="Status", ylab = "Compression Ratio", lab.size = 3,lab.pos = "in", order = c("Compressed","After7DaysCompressed"))+
+  facet_grid(Data$'pH' ~ Data$'Quantity', scales = "free")+ 
+   geom_errorbar(aes(ymin=mean-sd, ymax=mean+sd), width=.2,
+               position=position_dodge(.9))
+#ggplot(Data, aes(fill=`Status`, y=`mean`, x=`Buffer pH`)) + 
+   # geom_bar(position="dodge", stat="identity")
+```
+
+```{r}
+centrifuge3000rpm10min$pH <- as.factor(centrifuge3000rpm10min$pH)
+ggline(centrifuge3000rpm10min, x = "Status", y= "Ratio",add = c("mean_se", "jitter",ylab = "Compression Ratio"), fill ="pH", color = "pH", facet.by = "Quantity", order = c("Compressed","After7DaysCompressed"), panel.labs = list(Quantity = c("1 ml collagen","1.5 ml collage")), ylab = c("Compression Ratio"))+
+  ggtitle("Centrifuge at 3000 rpm (1000 g) for 10 mins") +
+  easy_center_title()+
+  stat_pvalue_manual(dun, hide.ns = TRUE)+
+  scale_y_continuous(expand = expansion(mult = c(0.05, 0.15)))
+```
+
+## Examine the Centrifuge 3000 rpm, 20 min at different pH buffer and quantity
+
+```{r}
+centrifuge3000rpm20min <- subset.data.frame(collagen_compression, `Centrifuge (rpm)` == 3000 & `Centrifuge Time (min)` == 20 & Person == "Frank" & `Status` != "Uncompressed")
+colnames(centrifuge3000rpm20min)[which(names(centrifuge3000rpm20min)=="Buffer pH")] <- "pH"
+colnames(centrifuge3000rpm20min)[which(names(centrifuge3000rpm20min)== "Total solution quantity (ml)")] <- "Quantity"
+colnames(centrifuge3000rpm20min)[which(names(centrifuge3000rpm20min)== "Compressed Ratio")] <- "Ratio"
+colnames(centrifuge3000rpm20min)[which(names(centrifuge3000rpm20min)== "Centrifuge (rpm)")] <- "Centrifuge"
+colnames(centrifuge3000rpm20min)[which(names(centrifuge3000rpm20min)== "Centrifuge Time (min)")] <- "CentrifugeTime"
+colnames(centrifuge3000rpm20min)[which(names(centrifuge3000rpm20min)== "Group Name")] <- "Condition"
+head(centrifuge3000rpm20min,5)
+```
+
+```{r}
+Data <- centrifuge3000rpm20min %>%
+  group_by(across(all_of(c("Condition","Status","pH","Quantity","Centrifuge","CentrifugeTime","Group")))) %>%
+  summarise(
+    count = n(),
+    mean = round(mean(`Ratio`, na.rm = TRUE),3),
+    sd = sd(`Ratio`, na.rm = TRUE),
+    median = median(`Ratio`, na.rm = TRUE),
+    IQR = IQR(`Ratio`, na.rm = TRUE)
+  )
+Data
+```
+
+```{r}
+shapiro.test(subset.data.frame(centrifuge3000rpm20min,`Buffer pH` == 7.7 & `Total solution quantity (ml)` == 1 & `Status` == "Compressed")$`Compressed Ratio`)
+shapiro.test(subset.data.frame(centrifuge3000rpm20min,`Buffer pH` == 7.7 & `Total solution quantity (ml)` == 1 & `Status` == "After7DaysCompressed")$`Compressed Ratio`)
+shapiro.test(subset.data.frame(centrifuge3000rpm20min,`Buffer pH` == 7.7 & `Total solution quantity (ml)` == 1.5 & `Status` == "Compressed")$`Compressed Ratio`)
+shapiro.test(subset.data.frame(centrifuge3000rpm20min,`Buffer pH` == 7.7 & `Total solution quantity (ml)` == 1.5 & `Status` == "After7DaysCompressed")$`Compressed Ratio`)
+shapiro.test(subset.data.frame(centrifuge3000rpm20min,`Buffer pH` == 9 & `Total solution quantity (ml)` == 1 & `Status` == "Compressed")$`Compressed Ratio`)
+shapiro.test(subset.data.frame(centrifuge3000rpm20min,`Buffer pH` == 9 & `Total solution quantity (ml)` == 1 & `Status` == "After7DaysCompressed")$`Compressed Ratio`)
+shapiro.test(subset.data.frame(centrifuge3000rpm20min,`Buffer pH` == 9 & `Total solution quantity (ml)` == 1.5 & `Status` == "Compressed")$`Compressed Ratio`)
+shapiro.test(subset.data.frame(centrifuge3000rpm20min,`Buffer pH` == 9 & `Total solution quantity (ml)` == 1.5 & `Status` == "After7DaysCompressed")$`Compressed Ratio`)
+```
+
+```{r}
+pstat <- compare_means(`Ratio` ~ `Group`, data = centrifuge3000rpm20min, method = "kruskal.test")
+pstat
+```
+
+```{r}
+#dun <- dunn_test(centrifuge3000rpm20min,`Ratio` ~ `Group`)
+#dun
+dun <- centrifuge3000rpm20min %>%
+  group_by(Quantity,pH) %>%
+  dunn_test(Ratio ~ Status) %>%
+  add_xy_position(x="Status", fun = "mean_sd", dodge = 0.8)
+dun
+```
+
+```{r}
+ggbarplot(Data, x = "Status", y= "mean", fill ="Status", ylab = "Compression Ratio", lab.size = 3,label = TRUE,lab.pos = "in", order = c("Compressed","After7DaysCompressed"))+
+  facet_grid(Data$'pH' ~ Data$'Quantity')+
+   geom_errorbar(aes(ymin=mean-sd, ymax=mean+sd), width=.2,
+               position=position_dodge(.9))
+```
+
+```{r}
+centrifuge3000rpm20min$pH <- as.factor(centrifuge3000rpm20min$pH)
+ggline(centrifuge3000rpm20min, x = "Status", y= "Ratio",add = c("mean_se", "jitter"), fill ="pH", color = "pH", facet.by = "Quantity", order = c("Compressed","After7DaysCompressed"), panel.labs = list(Quantity = c("1 ml collagen","1.5 ml collage")), ylab = c("Compression Ratio"))+
+  ggtitle("Centrifuge at 3000 rpm (1000 g) for 20 mins") +
+  easy_center_title()+
+  stat_pvalue_manual(dun, hide.ns = TRUE)+
+  scale_y_continuous(expand = expansion(mult = c(0.05, 0.15)))
+```
+
+## Examine the Centrifuge 2116 rpm, 10 min at different pH buffer and quantity
+
+```{r}
+centrifuge2116rpm10min <- subset.data.frame(collagen_compression, `Centrifuge (rpm)` == 2116 & `Centrifuge Time (min)` == 10 & Person == "Frank" & `Status` != "Uncompressed")
+colnames(centrifuge2116rpm10min)[which(names(centrifuge2116rpm10min)=="Buffer pH")] <- "pH"
+colnames(centrifuge2116rpm10min)[which(names(centrifuge2116rpm10min)== "Total solution quantity (ml)")] <- "Quantity"
+colnames(centrifuge2116rpm10min)[which(names(centrifuge2116rpm10min)== "Compressed Ratio")] <- "Ratio"
+colnames(centrifuge2116rpm10min)[which(names(centrifuge2116rpm10min)== "Centrifuge (rpm)")] <- "Centrifuge"
+colnames(centrifuge2116rpm10min)[which(names(centrifuge2116rpm10min)== "Centrifuge Time (min)")] <- "CentrifugeTime"
+colnames(centrifuge2116rpm10min)[which(names(centrifuge2116rpm10min)== "Group Name")] <- "Condition"
+head(centrifuge2116rpm10min,5)
+```
+
+```{r}
+Data <- centrifuge2116rpm10min %>%
+  group_by(across(all_of(c("Condition","Status","pH","Quantity","Centrifuge","CentrifugeTime")))) %>%
+  summarise(
+    count = n(),
+    mean = round(mean(`Ratio`, na.rm = TRUE),3),
+    sd = sd(`Ratio`, na.rm = TRUE),
+    median = median(`Ratio`, na.rm = TRUE),
+    IQR = IQR(`Ratio`, na.rm = TRUE)
+  )
+Data
+```
+
+```{r}
+shapiro.test(subset.data.frame(centrifuge2116rpm10min,`pH` == 7.7 & `Quantity` == 1 & `Status` == "Compressed")$`Ratio`)
+shapiro.test(subset.data.frame(centrifuge2116rpm10min,`pH` == 7.7 & `Quantity` == 1 & `Status` == "After7DaysCompressed")$`Ratio`)
+shapiro.test(subset.data.frame(centrifuge2116rpm10min,`pH` == 7.7 & `Quantity` == 1.5 & `Status` == "Compressed")$`Ratio`)
+shapiro.test(subset.data.frame(centrifuge2116rpm10min,`pH` == 7.7 & `Quantity` == 1.5 & `Status` == "After7DaysCompressed")$`Ratio`)
+shapiro.test(subset.data.frame(centrifuge2116rpm10min,`pH` == 9 & `Quantity` == 1 & `Status` == "Compressed")$`Ratio`)
+shapiro.test(subset.data.frame(centrifuge2116rpm10min,`pH` == 9 & `Quantity` == 1 & `Status` == "After7DaysCompressed")$`Ratio`)
+shapiro.test(subset.data.frame(centrifuge2116rpm10min,`pH` == 9 & `Quantity` == 1.5 & `Status` == "Compressed")$`Ratio`)
+shapiro.test(subset.data.frame(centrifuge2116rpm10min,`pH` == 9 & `Quantity` == 1.5 & `Status` == "After7DaysCompressed")$`Ratio`)
+```
+
+```{r}
+pstat <- compare_means(`Ratio` ~ `Group`, data = centrifuge2116rpm10min, method = "kruskal.test")
+pstat
+```
+
+```{r}
+#dunn_test(centrifuge2116rpm10min,`Ratio` ~ `Group`)
+dun <- centrifuge2116rpm10min %>%
+  group_by(Quantity,pH) %>%
+  dunn_test(Ratio ~ Status) %>%
+  add_xy_position(x="Status", fun = "mean_sd", dodge = 0.8)
+dun
+```
+
+```{r}
+ggbarplot(Data, x = "Status", y= "mean", fill ="Status", ylab = "Compression Ratio", lab.size = 3,label = TRUE,lab.pos = "in", order = c("Compressed","After7DaysCompressed"))+
+  facet_grid(Data$'pH' ~ Data$'Quantity')+ 
+   geom_errorbar(aes(ymin=mean-sd, ymax=mean+sd), width=.2,
+               position=position_dodge(.9))
+```
+
+```{r}
+centrifuge2116rpm10min$pH <- as.factor(centrifuge2116rpm10min$pH)
+ggline(centrifuge2116rpm10min, x = "Status", y= "Ratio",add = c("mean_se", "jitter"), fill ="pH", color = "pH", facet.by = "Quantity", order = c("Compressed","After7DaysCompressed"), panel.labs = list(Quantity = c("1 ml collagen","1.5 ml collage")), ylab = c("Compression Ratio"))+
+  ggtitle("Centrifuge at 2116 rpm (500 g) for 10 mins") +
+  easy_center_title()+
+  stat_pvalue_manual(dun, hide.ns = TRUE)+
+  scale_y_continuous(expand = expansion(mult = c(0.05, 0.15)))
+```
+
+## Examine the Centrifuge 2116 rpm, 20 min at different pH buffer and quantity
+
+```{r}
+centrifuge2116rpm20min <- subset.data.frame(collagen_compression, `Centrifuge (rpm)` == 2116 & `Centrifuge Time (min)` == 20 & Person == "Frank" & `Status` != "Uncompressed")
+colnames(centrifuge2116rpm20min)[which(names(centrifuge2116rpm20min)=="Buffer pH")] <- "pH"
+colnames(centrifuge2116rpm20min)[which(names(centrifuge2116rpm20min)== "Total solution quantity (ml)")] <- "Quantity"
+colnames(centrifuge2116rpm20min)[which(names(centrifuge2116rpm20min)== "Compressed Ratio")] <- "Ratio"
+colnames(centrifuge2116rpm20min)[which(names(centrifuge2116rpm20min)== "Centrifuge (rpm)")] <- "Centrifuge"
+colnames(centrifuge2116rpm20min)[which(names(centrifuge2116rpm20min)== "Centrifuge Time (min)")] <- "CentrifugeTime"
+colnames(centrifuge2116rpm20min)[which(names(centrifuge2116rpm20min)== "Group Name")] <- "Condition"
+head(centrifuge2116rpm20min,5)
+```
+
+```{r}
+Data <- centrifuge2116rpm20min %>%
+  group_by(across(all_of(c("Condition","Status","pH","Quantity","Centrifuge","CentrifugeTime","Group")))) %>%
+  summarise(
+    count = n(),
+    mean = round(mean(`Ratio`, na.rm = TRUE),3),
+    sd = sd(`Ratio`, na.rm = TRUE),
+    median = median(`Ratio`, na.rm = TRUE),
+    IQR = IQR(`Ratio`, na.rm = TRUE)
+  )
+Data
+```
+
+```{r}
+shapiro.test(subset.data.frame(centrifuge2116rpm20min,`pH` == 7.7 & `Quantity` == 1 & `Status` == "Compressed")$`Ratio`)
+shapiro.test(subset.data.frame(centrifuge2116rpm20min,`pH` == 7.7 & `Quantity` == 1 & `Status` == "After7DaysCompressed")$`Ratio`)
+shapiro.test(subset.data.frame(centrifuge2116rpm20min,`pH` == 7.7 & `Quantity` == 1.5 & `Status` == "Compressed")$`Ratio`)
+shapiro.test(subset.data.frame(centrifuge2116rpm20min,`pH` == 7.7 & `Quantity` == 1.5 & `Status` == "After7DaysCompressed")$`Ratio`)
+shapiro.test(subset.data.frame(centrifuge2116rpm20min,`pH` == 9 & `Quantity` == 1 & `Status` == "Compressed")$`Ratio`)
+shapiro.test(subset.data.frame(centrifuge2116rpm20min,`pH` == 9 & `Quantity` == 1 & `Status` == "After7DaysCompressed")$`Ratio`)
+shapiro.test(subset.data.frame(centrifuge2116rpm20min,`pH` == 9 & `Quantity` == 1.5 & `Status` == "Compressed")$`Ratio`)
+shapiro.test(subset.data.frame(centrifuge2116rpm20min,`pH` == 9 & `Quantity` == 1.5 & `Status` == "After7DaysCompressed")$`Ratio`)
+```
+
+```{r}
+pstat <- compare_means(`Ratio` ~ `Group`, data = centrifuge2116rpm20min, method = "kruskal.test")
+pstat
+```
+
+```{r}
+#dun <- dunn_test(centrifuge2116rpm20min,`Ratio` ~ `Group`)
+#dun
+dun <- centrifuge2116rpm20min %>%
+  group_by(Quantity,pH) %>%
+  dunn_test(Ratio ~ Status) %>%
+  add_xy_position(x="Status", fun = "mean_sd", dodge = 0.8)
+dun
+posthoc.f
+```
+
+```{r}
+ggbarplot(Data, x = "Group", y= "mean", fill ="Status", ylab = "Compression Ratio", lab.size = 3,label = TRUE,lab.pos = "in", order = c("Compressed","After7DaysCompressed"))+
+  facet_grid(Data$'pH' ~ Data$'Quantity')+ 
+   geom_errorbar(aes(ymin=mean-sd, ymax=mean+sd), width=.2,
+               position=position_dodge(.9))
+
+```
+
+```{r}
+centrifuge2116rpm20min$pH <- as.factor(centrifuge2116rpm20min$pH)
+ggline(centrifuge2116rpm20min, x = "Status", y= "Ratio",add = c("mean_se", "jitter"), color = "pH", facet.by = "Quantity", panel.labs = list(Quantity = c("1 ml collagen","1.5 ml collage")), ylab = c("Compression Ratio"))+
+  ggtitle("Centrifuge at 2116 rpm (500 g) for 20 mins") +
+  easy_center_title()+
+  stat_pvalue_manual(dun, hide.ns = TRUE)+
+  scale_y_continuous(expand = expansion(mult = c(0.05, 0.15)))
+```
+
+## Compared the compression
+
+```{r}
+Data <- subset.data.frame(collagen_compression,`Status` == "Compressed" & "Centrifuge Time (min)" != 5 & `Person`=="Frank") %>%
+  group_by(across(all_of(c("Group Name","Status","Buffer pH","Total solution quantity (ml)","Centrifuge (rpm)","Centrifuge Time (min)")))) %>%
+  summarise(
+    count = n(),
+    mean = round(mean(`Compressed Ratio`, na.rm = TRUE),3),
+    sd = sd(`Compressed Ratio`, na.rm = TRUE),
+    median = median(`Compressed Ratio`, na.rm = TRUE),
+    IQR = IQR(`Compressed Ratio`, na.rm = TRUE)
+  )
+Data
+colnames(Data)[which(names(Data)=="Buffer pH")] <- "pH"
+colnames(Data)[which(names(Data)== "Total solution quantity (ml)")] <- "Quantity"
+colnames(Data)[which(names(Data)== "Compressed Ratio")] <- "Ratio"
+colnames(centrifuge3000rpm10min)[which(names(centrifuge3000rpm10min)== "Centrifuge (rpm)")] <- "Centrifuge"
+colnames(centrifuge3000rpm10min)[which(names(centrifuge3000rpm10min)== "Centrifuge Time (min)")] <- "CentrifugeTime"
+colnames(centrifuge3000rpm10min)[which(names(centrifuge3000rpm10min)== "Group Name")] <- "Condition"
+```
+
+```{r}
+Data %>%
+  group_by()
+```
+
+## 3. Young's Modulus
+
+## To find out the prediction model
+
+```{r}
+youngs <- subset.data.frame(collagen_compression, Person == "Frank")
+colnames(youngs)[which(names(youngs)=="Buffer pH")] <- "pH"
+colnames(youngs)[which(names(youngs)== "Total solution quantity (ml)")] <- "Quantity"
+colnames(youngs)[which(names(youngs)== "Compressed Ratio")] <- "Ratio"
+colnames(youngs)[which(names(youngs)== "Centrifuge (rpm)")] <- "Centrifuge"
+colnames(youngs)[which(names(youngs)== "Centrifuge Time (min)")] <- "CentrifugeTime"
+colnames(youngs)[which(names(youngs)== "Group Name")] <- "Condition"
+colnames(youngs)[which(names(youngs)== "Youngs Modulus (kPa)")] <- "Youngs_Modulus"
+head(youngs,5)
+```
+
+```{r}
+Data <- youngs %>%
+  group_by(across(all_of(c("Area","Date.x")))) %>%
+  summarise(
+    count = n(),
+    mean = round(mean(`Youngs_Modulus`, na.rm = TRUE),3),
+    sd = sd(`Youngs_Modulus`, na.rm = TRUE),
+    median = median(`Youngs_Modulus`, na.rm = TRUE),
+    IQR = IQR(`Youngs_Modulus`, na.rm = TRUE)
+  )
+Data
+```
+
+```{r}
+shapiro.test(subset.data.frame(youngs, Area == "Highest")$Youngs_Modulus)
+shapiro.test(subset.data.frame(youngs, Area == "Middle")$Youngs_Modulus)
+shapiro.test(subset.data.frame(youngs, Area == "Low")$Youngs_Modulus)
+```
+
+```{r}
+youngtest <- aov(Youngs_Modulus ~ Area, subset.data.frame(youngs, Date.x >= as.Date('2022-10-20')))
+summary(youngtest)
+```
+
+```{r}
+pstat <- compare_means(Youngs_Modulus ~ Area , data = youngs, method = "kruskal.test")
+pstat
+```
+
+```{r}
+dun <- youngs %>%
+  dunn_test(Youngs_Modulus ~ Area) %>%
+  add_xy_position(x="Status", fun = "mean_sd", dodge = 0.8)
+dun
+```
+
+```{r}
+var.test(Youngs_Modulus ~ Quantity, subset.data.frame(youngs, pH == 7.7 & Status == "Compressed"))
+```
+
+```{r}
+t.test(Youngs_Modulus ~ Quantity, subset.data.frame(youngs, pH == 7.7 & Status == "Compressed"))
+```

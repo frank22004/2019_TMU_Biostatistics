@@ -1,0 +1,78 @@
+---
+title: "Linear Regression"
+output: html_notebook
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## Loading `r version[['version.string']]` and following packages, Set up the connection:
+
+```{r cars, echo = TRUE}
+library(RODBC)
+library(UsingR)
+library(ggpubr)
+library(ggplot2)
+library(ggsignif)
+library(dplyr)
+library(ggeasy)
+library(ggplot2)
+library(rstatix)
+library(stringr)
+library(fitdistrplus)
+library(knitr)
+```
+
+1. Set up driver info and database path
+
+```{r access_path}
+DRIVERINFO <- "Driver={Microsoft Access Driver (*.mdb, *.accdb)};"
+MDBPATH <- "E:/OneDrive/文件/TMU-DESKTOP-SF2LD60-Surface-Go-Surface-Go.accdb"
+PATH <- paste0(DRIVERINFO, "DBQ=", MDBPATH)
+```
+
+2. Establish connection
+
+```{r connection}
+channel <- odbcDriverConnect(PATH)
+```
+
+3. Load data into R dataframe
+
+```{r Load}
+df <- sqlQuery(channel,"SELECT * FROM CollagenMembrane, AFM WHERE CollagenMembrane.Cantilever=AFM.No;", stringsAsFactors = FALSE)
+df_dish <- sqlQuery(channel, "SELECT * FROM DishDepth;", stringsAsFactors = FALSE)
+```
+
+4. Table on the Data
+
+```{r}
+df_data <- subset.data.frame(df, `Experiment Sample` == 77| `Experiment Sample` == 74)
+
+SynthesisMatrix <- df_data %>%
+  group_by(`Area`) %>%
+  summarise(
+    count = sum(!is.na(`YoungsModulus`)),
+    mean = mean(`YoungsModulus`, na.rm = TRUE),
+    sd = sd(`YoungsModulus`, na.rm = TRUE),
+    median = median(`YoungsModulus`, na.rm = TRUE),
+    IQR = IQR(`YoungsModulus`, na.rm = TRUE),
+    se = sd(`YoungsModulus`, na.rm = TRUE)/sqrt(count),
+    thickCount = sum(!is.na(`Thickness`))
+  )
+
+SynthesisMatrix
+```
+
+5. Plot
+
+```{r}
+simple.lm(df_data$Xaxis,df_data$YoungsModulus)
+summary(lm(YoungsModulus ~ Xaxis, data = df_data))
+```
+## Close and remove channel
+
+```{r}
+close(channel)
+```

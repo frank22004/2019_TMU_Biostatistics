@@ -1,0 +1,121 @@
+---
+title: "PCA Test"
+output: html_notebook
+date: "2024/12/19"
+author: "Frank"
+---
+
+#### Library import
+
+```{r}
+library(RODBC)
+library(UsingR)
+library(ggpubr)
+library(ggplot2)
+library(ggsignif)
+library(dplyr)
+library(ggeasy)
+library(ggplot2)
+library(rstatix)
+library(stringr)
+library(fitdistrplus)
+library(knitr)
+library(multcomp)
+library(xlsx)
+library(grid)
+library(plotrix)
+library(ggpattern)
+library(stats)
+library(factoextra)
+library(FactoMineR)
+library(data.table)
+```
+
+## Read Data from Excel
+
+```{r}
+dataset_PCA <- read.xlsx("E:/OneDrive - 東京都公立大学法人/Desktop/Mochizuki_ATDC5_Nucleus-Actin.xlsx",2,rowNames=TRUE)
+#rownames(dataset_PCA) <- dataset_PCA$Group
+#dataset_PCA
+row.names(dataset_PCA) <- rownames(dataset_PCA)
+```
+
+```{r}
+dataset_PCA
+```
+
+
+## Compute PCA for Cell
+```{r}
+#dataset_PCA
+#res.pca <- prcomp(dataset_PCA[,1:8], scale = TRUE)
+#fviz_eig(res.pca)
+res.pca <- PCA(dataset_PCA[,2:3], graph = FALSE)
+print(res.pca)
+
+```
+### Eigenvalues / Variances
+
+```{r}
+eig.val <- get_eigenvalue(res.pca)
+eig.val
+```
+### Dimension description
+```{r}
+fviz_eig(res.pca, addlabels = TRUE, ylim = c(0, 100))
+res.desc <- dimdesc(res.pca, axes = c(1,2), proba = 0.05)
+# Description of dimension 1
+res.desc$Dim.1
+res.desc$Dim.2
+```
+### Plots: quality and contribution
+
+```{r}
+fviz_pca_ind(res.pca,
+#             axes = c(3,4),
+             geom.ind = "point", # show points only (nbut not "text")
+             col.ind = dataset_PCA$Group, # color by groups
+#             palette = c("#00AFBB", "#E7B800", "#FC4E07"),
+             addEllipses = TRUE, # Concentration ellipses
+             legend.title = "Groups",
+              title="Cell"
+             )
+```
+## Compute PCA for nucleus
+```{r}
+res.pca.nu <- PCA(dataset_PCA[,2:3], graph = FALSE)
+print(res.pca.nu)
+```
+### Eigenvalues / Variances
+
+```{r}
+eig.val.nu <- get_eigenvalue(res.pca.nu)
+eig.val.nu
+```
+
+### Dimension description
+```{r}
+fviz_eig(res.pca.nu, addlabels = TRUE, ylim = c(0, 100))
+res.desc.nu <- dimdesc(res.pca.nu, axes = c(1,2), proba = 0.05)
+# Description of dimension 1
+res.desc.nu$Dim.1
+res.desc.nu$Dim.2
+```
+
+### Plots: quality and contribution
+
+```{r}
+fviz_pca_ind(res.pca.nu,
+             geom.ind = "point", # show points only (nbut not "text")
+             col.ind = dataset_PCA$Group, # color by groups
+#             palette = c("#00AFBB", "#E7B800", "#FC4E07"),
+             addEllipses = TRUE, # Concentration ellipses
+             legend.title = "Groups",
+            title="Nucleus"
+             )
+```
+
+```{r}
+plot(res.pca.nu$ind$coord[,1],res.pca$ind$coord[,1],col=factor(dataset_PCA$Group),legend=levels(dataset_PCA$Group))
+```
+
