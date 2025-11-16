@@ -1,0 +1,35 @@
+---
+title: "Gwet’s AC1"
+output: html_notebook
+---
+
+## 1. Environment setting
+
+```{r}
+library(readxl)
+library(irrCAC)
+```
+
+## 2. Loading Excel
+
+```{r}
+gaga <- read_xlsx("C:/Users/frank/Downloads/Kappa.xlsx", sheet = "new_Q_1")
+head(gaga)
+```
+## 3. Kappa
+
+Computing agreement Coefficients from Contingency tables
+
+```{r}
+fleiss.kappa.dist(gaga[,c(9:11)])
+```
+```{r}
+fleiss.kappa.raw(gaga[,c(9:11)])
+```
+## 4. AC1  coefficient
+
+```{r}
+ac1 <- gwet.ac1.raw(gaga[,c(9:11)])$est
+ac1
+```
+
